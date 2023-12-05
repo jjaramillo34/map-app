@@ -53,8 +53,8 @@ export default function App() {
       style: "mapbox://styles/mapbox/light-v10",
       center: [lng, lat],
       zoom: zoom,
-      bearing: -17.6,
-      pitch: 45,
+      bearing: 0,
+      pitch: 0,
     });
 
     // filter the geojson by distance from the user's current location
@@ -111,12 +111,16 @@ export default function App() {
         marker: true,
         flyTo: true,
         placeholder: "Search for a location in Puerto Rico",
+        // add a default location to the geocoder that will be used to limit the
+        // search to the bounds of Puerto Rico
+
+        default: "Puerto Rico",
 
         proximity: {
           longitude: lng,
           latitude: lat,
         },
-        countries: "pr",
+        //countries: "pr",
         // style the geocoder search input
         // https://docs.mapbox.com/api/maps/#geocoder
         marker: {
@@ -130,6 +134,9 @@ export default function App() {
       }),
       "top-left"
     );
+
+    // add a full screen control to the map
+    map.current.addControl(new mapboxgl.FullscreenControl(), "top-right");
 
     // parse the geojson data and add it to the map
     map.current.on("load", function () {
