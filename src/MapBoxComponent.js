@@ -19,27 +19,12 @@ export default function App() {
   // get the user's current location
   const [currentLocation, setCurrentLocation] = useState(null);
 
-  // get the user's current location using mapbox
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          // Success handler
-          const userLocation = {
-            lng: position.coords.longitude,
-            lat: position.coords.latitude,
-          };
-          setCurrentLocation(userLocation);
-        },
-        (error) => {
-          // Error handler
-          console.error("Error getting location: ", error);
-        }
-      );
-    } else {
-      // Browser doesn't support Geolocation
-      console.error("Geolocation is not supported by this browser.");
-    }
+  // fly to the user's current location
+  const flytoLocation = () => {
+    map.current.flyTo({
+      center: [currentLocation?.lng, currentLocation?.lat],
+      zoom: 14,
+    });
   };
 
   // set the user's current location
@@ -47,9 +32,9 @@ export default function App() {
   useEffect(() => {
     if (map.current) return; // initialize map only once
 
+    // initialize the map object
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      // map style cartodb light
       style: "mapbox://styles/mapbox/light-v10",
       center: [lng, lat],
       zoom: zoom,
@@ -241,7 +226,7 @@ export default function App() {
         mapboxgl: mapboxgl,
         marker: true,
         flyTo: true,
-        placeholder: "Search for a location in Puerto Rico",
+        placeholder: "Buscar una dirección en Puerto Rico",
         // add a default location to the geocoder that will be used to limit the
         // search to the bounds of Puerto Rico
 
@@ -460,6 +445,22 @@ export default function App() {
         >
           📋
         </span>
+      </div>
+
+      <div
+        className="flyto"
+        // style the button to the right of the map bottom
+        style={{
+          position: "absolute",
+          bottom: "0",
+          right: "0",
+          zIndex: "2",
+          padding: "10px",
+          backgroundColor: "white",
+          opacity: "0.9",
+        }}
+      >
+        <button onClick={flytoLocation}>Fly to my location</button>
       </div>
 
       <div

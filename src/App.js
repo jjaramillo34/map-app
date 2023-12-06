@@ -1,13 +1,13 @@
-import React, { useState } from "react";
-import MapBoxComponent from "./MapBoxComponent";
-import "mapbox-gl/dist/mapbox-gl.css"; // Import Mapbox CSS
+import React from "react";
+import "./App.css";
+import AppRouter from "./Router";
 
-const App = () => {
+function App() {
   return (
     <div className="App">
-      <MapBoxComponent />
+      <AppRouter />
     </div>
   );
-};
+}
 
 export default App;
