@@ -57,10 +57,7 @@ export default function App() {
       pitch: 0,
     });
 
-    // filter the geojson by distance from the user's current location
-    var distanceFilter = ["<", "distance", 2000];
-    // use the distance from the user's current location to filter the geojson
-
+    // use the distance from the user's current location to filter the geojson data
     map.current.on("load", function () {
       // insert the layer beneath any symbol layer 3D buildings
       var layers = map.current.getStyle().layers;
@@ -100,6 +97,140 @@ export default function App() {
           },
         },
         labelLayerId
+      );
+    });
+
+    // add day, night, and satellite layers to the map
+    map.current.on("load", function () {
+      // Add a geojson point source.
+      // Heatmap layers also work with a vector tile source.
+      map.current.addSource("earthquakes", {
+        type: "geojson",
+        data: data,
+      });
+
+      map.current.addLayer(
+        {
+          id: "earthquakes-heat",
+          type: "heatmap",
+          source: "earthquakes",
+          maxzoom: 9,
+          paint: {
+            // increase weight as diameter breast height increases
+            "heatmap-weight": {
+              property: "dbh",
+              type: "exponential",
+              stops: [
+                [1, 0],
+                [62, 1],
+              ],
+            },
+            // increase intensity as zoom level increases
+            "heatmap-intensity": {
+              stops: [
+                [11, 1],
+                [15, 3],
+              ],
+            },
+            // assign color values be applied to points depending on their density
+            "heatmap-color": [
+              "interpolate",
+              ["linear"],
+              ["heatmap-density"],
+              0,
+              "rgba(236,222,239,0)",
+              0.2,
+              "rgb(208,209,230)",
+              0.4,
+              "rgb(166,189,219)",
+              0.6,
+              "rgb(103,169,207)",
+              0.8,
+              "rgb(28,144,153)",
+            ],
+            // increase radius as zoom increases
+            "heatmap-radius": {
+              stops: [
+                [11, 15],
+                [15, 20],
+              ],
+            },
+            // decrease opacity to transition into the circle layer
+            "heatmap-opacity": {
+              default: 1,
+              stops: [
+                [14, 1],
+                [15, 0],
+              ],
+            },
+          },
+        },
+        "waterway-label"
+      );
+
+      map.current.addLayer(
+        {
+          id: "earthquakes-point",
+          type: "circle",
+          source: "earthquakes",
+          minzoom: 14,
+          paint: {
+            // increase the radius of the circle as the zoom level and dbh value increases
+            "circle-radius": {
+              property: "dbh",
+              type: "exponential",
+              stops: [
+                [{ zoom: 15, value: 1 }, 5],
+                [{ zoom: 15, value: 62 }, 10],
+                [{ zoom: 22, value: 1 }, 20],
+                [{ zoom: 22, value: 62 }, 50],
+              ],
+            },
+            "circle-color": {
+              property: "dbh",
+              type: "exponential",
+              stops: [
+                [0, "rgba(236,222,239,0)"],
+                [10, "rgb(236,222,239)"],
+                [20, "rgb(208,209,230)"],
+                [30, "rgb(166,189,219)"],
+                [40, "rgb(103,169,207)"],
+                [50, "rgb(28,144,153)"],
+                [60, "rgb(1,108,89)"],
+              ],
+            },
+            "circle-stroke-color": "white",
+            "circle-stroke-width": 1,
+
+            // transition from heatmap to circle layer by increasing opacity value
+            "circle-opacity": {
+              stops: [
+                [14, 0],
+                [15, 1],
+              ],
+            },
+          },
+        },
+        "waterway-label"
+      );
+
+      map.current.addLayer(
+        {
+          id: "earthquakes-label",
+          type: "symbol",
+          source: "earthquakes",
+          minzoom: 15,
+          layout: {
+            "text-field": ["format", ["get", "dbh"], { "font-scale": 1.2 }],
+            "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+            "text-offset": [0, 0.1],
+            "text-anchor": "top",
+          },
+          paint: {
+            "text-color": "rgba(0,0,0,0.5)",
+          },
+        },
+        "waterway-label"
       );
     });
 
@@ -234,12 +365,46 @@ export default function App() {
       "top-right"
     );
 
+    // draw a circle around the user's current location and use it to filter the geojson
+    map.current.on("load", function () {
+      map.current.addSource("currentLocation", {
+        type: "geojson",
+        data: {
+          type: "Point",
+          coordinates: [currentLocation?.lng, currentLocation?.lat],
+        },
+      });
+      map.current.addLayer({
+        id: "currentLocation",
+        type: "circle",
+        source: "currentLocation",
+        paint: {
+          "circle-radius": 10,
+          "circle-color": "#007cbf",
+          "circle-opacity": 0.5,
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#007cbf",
+        },
+      });
+    });
+
     map.current.on("move", () => {
       setLng(map.current.getCenter().lng.toFixed(6));
       setLat(map.current.getCenter().lat.toFixed(6));
       setZoom(map.current.getZoom().toFixed(0));
     });
   });
+
+  // copy the longitude and latitude to the clipboard
+  const copyLocation = () => {
+    navigator.clipboard.writeText(
+      `Longitude: ${lng} | Latitude: ${lat} | Zoom: ${zoom}`
+    );
+    // show a message to the user that the location was copied
+    navigator.clipboard.readText().then((text) => {
+      alert("Location copied to the clipboard: " + text);
+    });
+  };
 
   return (
     <div
@@ -282,6 +447,19 @@ export default function App() {
         }}
       >
         Longitude: {lng} | Latitude: {lat} | Zoom: {zoom}
+        <span
+          className="copy-icon"
+          role="img"
+          aria-label="copy"
+          style={{
+            cursor: "pointer",
+            marginLeft: "10px",
+            fontSize: "1.5em",
+          }}
+          onClick={copyLocation}
+        >
+          📋
+        </span>
       </div>
 
       <div

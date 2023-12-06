@@ -1,3 +1,4 @@
+/* Default styles for larger screens */
 .container {
   display: flex;
   flex-direction: column;
@@ -21,7 +22,6 @@
   padding-top: 156px;
 }
 
-
 .sidebarStyle {
   display: inline-block;
   position: absolute;
@@ -36,12 +36,14 @@
   font-family: 'Roboto', sans-serif;
 }
 
+.sidebarStyle select {
+  width: 100%;
+  font-size: 1em;
+  margin-bottom: 8px;
+}
 
-.title {
-  font-size: 1.5em;
-  margin: 0;
-  padding: 0;
-  color: #ffffff;
+.sidebarStyle input[type='checkbox'] {
+  margin-right: 3px;
 }
 
 .title h1 {
@@ -80,9 +82,7 @@
   font-family: 'Roboto', sans-serif;
   width: 350px;
   font-size: 1.5em;
-
 }
-
 
 .mapboxgl-ctrl-geocoder--suggestion {
   background-color: #404040;
@@ -95,64 +95,40 @@
 
 .mapboxgl-ctrl-geocoder--button {
   color: #ffffff;
-
   display: none;
 }
 
-
+/* Mobile-responsive adjustments */
 @media (max-width: 768px) {
+  .container {
+    padding: 0 10px;
+    /* Add some padding to the container for smaller screens */
+  }
+
   .map-container {
-    padding-top: 56px;
+    padding-top: 100px;
+    /* Adjust the top padding for the map container */
   }
 
   .mapboxgl-ctrl-geocoder--input {
-    width: 250px;
-    font-size: 1em;
+    width: 100%;
+    /* Make the input full-width on smaller screens */
+  }
+
+  .mapboxgl-ctrl-geocoder--button {
+    display: block;
+    /* Display the button on smaller screens */
   }
 
   .title {
-    font-size: 1em;
+    display: none;
   }
 
   .title h1 {
-    font-size: 1em;
+    display: none;
   }
 
   .title h2 {
-    font-size: 1em;
+    display: none;
   }
-
-  .sidebarStyle {
-    font-size: 1em;
-  }
-
-  .mapboxgl-ctrl-geocoder--suggestion {
-    font-size: 1em;
-  }
-
-  .mapboxgl-ctrl-geocoder--input {
-    font-size: 1em;
-  }
-
-  .mapboxgl-ctrl-geocoder--suggestion em {
-    font-size: 1em;
-  }
-
-  .mapboxgl-ctrl-geocoder--suggestion .mapboxgl-ctrl-geocoder--suggestion-title {
-    font-size: 1em;
-  }
-
-  .mapboxgl-ctrl-geocoder--suggestion .mapboxgl-ctrl-geocoder--suggestion-address {
-    font-size: 1em;
-  }
-
-  .mapboxgl-ctrl-geocoder--suggestion .mapboxgl-ctrl-geocoder--icon-marker {
-    font-size: 1em;
-  }
-
-  .mapboxgl-ctrl-geocoder--suggestion .mapboxgl-ctrl-geocoder--suggestion-list {
-    font-size: 1em;
-  }
-
-
 }
