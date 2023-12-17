@@ -5,7 +5,7 @@ import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
-export default function App() {
+export default function Mapa() {
   const mapContainer = useRef(null);
   const map = useRef(null);
   // set the initial state of the map to Puerto Rico
