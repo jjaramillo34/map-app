@@ -212,7 +212,6 @@ const AnalyticsPage = () => {
         });
         setLastUpdate(new Date());
         setLoading(false);
-        setLoading(false);
       } catch (err) {
         console.error("Error analyzing data:", err);
         setError("Error al cargar los datos");
@@ -780,11 +779,11 @@ const AnalyticsPage = () => {
           heatmapMap.current.removeLayer("heatmap-layer");
         }
         if (heatmapMap.current.getLayer("heatmap-points")) {
-          heatmapMap.current.removeLayer("heatmap-points");
-          // Remove event listeners
+          // Remove event listeners before removing layer to prevent memory leaks
           heatmapMap.current.off("click", "heatmap-points");
           heatmapMap.current.off("mouseenter", "heatmap-points");
           heatmapMap.current.off("mouseleave", "heatmap-points");
+          heatmapMap.current.removeLayer("heatmap-points");
         }
         if (heatmapMap.current.getSource("heatmap-data")) {
           heatmapMap.current.removeSource("heatmap-data");
@@ -898,17 +897,26 @@ const AnalyticsPage = () => {
         heatmapMap.current.off("click", "heatmap-points", clickHandler);
         heatmapMap.current.on("click", "heatmap-points", clickHandler);
 
-        heatmapMap.current.on("mouseenter", "heatmap-points", () => {
+        // Mouse enter/leave handlers with stored references for proper cleanup
+        const mouseEnterHandler = () => {
           if (heatmapMap.current) {
             heatmapMap.current.getCanvas().style.cursor = "pointer";
           }
-        });
+        };
 
-        heatmapMap.current.on("mouseleave", "heatmap-points", () => {
+        const mouseLeaveHandler = () => {
           if (heatmapMap.current) {
             heatmapMap.current.getCanvas().style.cursor = "";
           }
-        });
+        };
+
+        // Remove old mouse handlers before adding new ones
+        heatmapMap.current.off("mouseenter", "heatmap-points", mouseEnterHandler);
+        heatmapMap.current.off("mouseleave", "heatmap-points", mouseLeaveHandler);
+        
+        // Add new mouse handlers
+        heatmapMap.current.on("mouseenter", "heatmap-points", mouseEnterHandler);
+        heatmapMap.current.on("mouseleave", "heatmap-points", mouseLeaveHandler);
       };
 
       if (heatmapMap.current.loaded()) {
