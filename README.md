@@ -64,7 +64,11 @@ Crear un archivo `.env` en la raíz del proyecto:
 REACT_APP_MAPBOX_TOKEN=tu_token_de_mapbox
 REACT_APP_OPENAI_API_KEY=tu_api_key_de_openai (opcional)
 REACT_APP_ADMIN_PASSWORD_HASH=hash_de_tu_contraseña (opcional)
+MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/powersolarpr (requerido para almacenar datos)
 ```
+
+**Nota**: Para MongoDB, ve a [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) y crea un cluster gratuito. 
+Ver `MONGODB_SETUP.md` para instrucciones detalladas.
 
 Para generar un hash de contraseña, puedes usar la función en el navegador:
 ```javascript

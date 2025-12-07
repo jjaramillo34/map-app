@@ -68,19 +68,29 @@ const AdminDashboard = () => {
     }
   }, [selectedMunicipio]);
 
-  const loadMunicipalities = () => {
-    const data = getAllMunicipalityData();
-    setMunicipalities(Object.keys(data));
+  const loadMunicipalities = async () => {
+    try {
+      const data = await getAllMunicipalityData();
+      setMunicipalities(Object.keys(data));
+    } catch (error) {
+      console.error('Error loading municipalities:', error);
+      setMunicipalities([]);
+    }
   };
 
-  const loadMunicipioData = (municipioName) => {
-    const data = getMunicipalityData(municipioName);
-    if (data) {
-      setDescription(data.description || "");
-      setTags(data.tags ? data.tags.join(", ") : "");
-      setHighlights(data.highlights ? data.highlights.join("\n") : "");
-      setFunFact(data.funFact || "");
-    } else {
+  const loadMunicipioData = async (municipioName) => {
+    try {
+      const data = await getMunicipalityData(municipioName);
+      if (data) {
+        setDescription(data.description || "");
+        setTags(data.tags ? data.tags.join(", ") : "");
+        setHighlights(data.highlights ? data.highlights.join("\n") : "");
+        setFunFact(data.funFact || "");
+      } else {
+        clearForm();
+      }
+    } catch (error) {
+      console.error('Error loading municipality data:', error);
       clearForm();
     }
   };
@@ -158,7 +168,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedMunicipio) {
       setMessage({ type: "error", text: "Por favor seleccione un municipio" });
       return;
@@ -181,10 +191,10 @@ const AdminDashboard = () => {
         funFact: funFact.trim(),
       };
 
-      const success = saveMunicipalityData(selectedMunicipio, data);
+      const success = await saveMunicipalityData(selectedMunicipio, data);
       if (success) {
-        setMessage({ type: "success", text: "Datos guardados exitosamente" });
-        loadMunicipalities();
+        setMessage({ type: "success", text: "Datos guardados exitosamente en MongoDB" });
+        await loadMunicipalities();
       } else {
         setMessage({ type: "error", text: "Error al guardar los datos" });
       }
@@ -196,7 +206,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedMunicipio) {
       return;
     }
@@ -209,13 +219,18 @@ const AdminDashboard = () => {
       return;
     }
 
-    const success = deleteMunicipalityData(selectedMunicipio);
-    if (success) {
-      setMessage({ type: "success", text: "Datos eliminados exitosamente" });
-      setSelectedMunicipio("");
-      clearForm();
-      loadMunicipalities();
-    } else {
+    try {
+      const success = await deleteMunicipalityData(selectedMunicipio);
+      if (success) {
+        setMessage({ type: "success", text: "Datos eliminados exitosamente de MongoDB" });
+        setSelectedMunicipio("");
+        clearForm();
+        await loadMunicipalities();
+      } else {
+        setMessage({ type: "error", text: "Error al eliminar los datos" });
+      }
+    } catch (error) {
+      console.error("Error deleting:", error);
       setMessage({ type: "error", text: "Error al eliminar los datos" });
     }
   };

@@ -188,11 +188,17 @@ const MunicipioDetail = () => {
     setMunicipioData(municipioInfo);
     setStats(municipioInfo);
     
-    // Load extra data (descriptions, etc.)
-    const extra = getMunicipalityData(municipioName);
-    setExtraData(extra);
-    
-    setLoading(false);
+    // Load extra data (descriptions, etc.) from MongoDB
+    getMunicipalityData(municipioName)
+      .then((extra) => {
+        setExtraData(extra);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error('Error loading municipality extra data:', error);
+        setExtraData(null);
+        setLoading(false);
+      });
   };
 
   // Initialize map
