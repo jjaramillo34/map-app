@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
-  BarChart3, TrendingUp, DollarSign, Users, MapPin, 
+  BarChart3, TrendingUp, DollarSign, MapPin, 
   Brain, Target, AlertCircle, PieChart, Activity,
-  Zap, Building2, Globe, Layers3, Loader2,
-  Download, Calendar, RefreshCw, Map as MapIcon, TreePine
+  Zap, Globe, Layers3, Loader2,
+  Map as MapIcon, TreePine
 } from "lucide-react";
 import { 
   LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell,
@@ -23,13 +23,8 @@ const AnalyticsPage = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedMetric, setSelectedMetric] = useState("customers");
-  const [dateRange, setDateRange] = useState({ start: "", end: "" });
-  const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const mapRef = useRef(null);
   const heatmapMapContainer = useRef(null);
   const heatmapMap = useRef(null);
-  const [heatmapData, setHeatmapData] = useState(null);
 
   useEffect(() => {
     const analyzeData = async () => {
@@ -210,7 +205,6 @@ const AnalyticsPage = () => {
             avgIncome: Math.round(municipios.reduce((sum, m) => sum + m.avgIncome, 0) / municipios.length),
           }
         });
-        setLastUpdate(new Date());
         setLoading(false);
       } catch (err) {
         console.error("Error analyzing data:", err);
@@ -269,9 +263,10 @@ const AnalyticsPage = () => {
         clusters[clusterIdx].push({ ...data[idx], cluster: clusterIdx });
       });
 
-      // Update centroids
-      centroids = clusters.map(cluster => {
-        if (cluster.length === 0) return centroids[clusters.indexOf(cluster)];
+      // Update centroids - use previous centroids to avoid closure issues
+      const previousCentroids = [...centroids];
+      centroids = clusters.map((cluster, clusterIndex) => {
+        if (cluster.length === 0) return previousCentroids[clusterIndex];
         return {
           income: cluster.reduce((sum, m) => sum + m.avgIncome / 100000, 0) / cluster.length,
           penetration: cluster.reduce((sum, m) => sum + parseFloat(m.penetrationRate) / 100, 0) / cluster.length,
@@ -688,23 +683,23 @@ const AnalyticsPage = () => {
     document.body.removeChild(link);
   };
 
-  // Refresh data
-  const refreshData = () => {
-    setLoading(true);
-    // Trigger re-analysis
-    window.location.reload();
-  };
+  // Refresh data (commented out - not currently used in UI)
+  // const refreshData = () => {
+  //   setLoading(true);
+  //   // Trigger re-analysis
+  //   window.location.reload();
+  // };
 
-  // Auto-refresh effect
-  useEffect(() => {
-    if (!autoRefresh) return;
-    
-    const interval = setInterval(() => {
-      refreshData();
-    }, 300000); // 5 minutes
+  // Auto-refresh effect (commented out - not currently used)
+  // useEffect(() => {
+  //   if (!autoRefresh) return;
+  //   
+  //   const interval = setInterval(() => {
+  //     refreshData();
+  //   }, 300000); // 5 minutes
 
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
+  //   return () => clearInterval(interval);
+  // }, [autoRefresh]);
 
   // Initialize and update heatmap map
   useEffect(() => {
@@ -1032,6 +1027,7 @@ const AnalyticsPage = () => {
                   { id: "anomalies", label: "Anomalías", icon: AlertCircle },
                   { id: "regional", label: "Análisis Regional", icon: Globe },
                   { id: "segments", label: "Segmentación", icon: Layers3 },
+                  { id: "export", label: "Exportar", icon: Download },
                 ].map(tab => {
                   const Icon = tab.icon;
                   return (
@@ -1724,6 +1720,43 @@ const AnalyticsPage = () => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Export Tab */}
+              {activeTab === "export" && (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Download className="w-6 h-6 text-primary-600" />
+                    <h2 className="text-2xl font-bold text-gray-900">Exportar Datos</h2>
+                  </div>
+                  <p className="text-gray-600 mb-6">
+                    Exporta los datos de analytics en diferentes formatos para análisis externo
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <button
+                      onClick={exportToPDF}
+                      className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-red-50 to-red-100 rounded-xl border-2 border-red-200 hover:border-red-400 transition-all hover:shadow-lg"
+                    >
+                      <Download className="w-12 h-12 text-red-600 mb-4" />
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">Exportar a PDF</h3>
+                      <p className="text-sm text-gray-600 text-center">
+                        Genera un reporte completo en formato PDF con todos los analytics
+                      </p>
+                    </button>
+
+                    <button
+                      onClick={exportToCSV}
+                      className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all hover:shadow-lg"
+                    >
+                      <Download className="w-12 h-12 text-green-600 mb-4" />
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">Exportar a CSV</h3>
+                      <p className="text-sm text-gray-600 text-center">
+                        Descarga los datos en formato CSV para análisis en Excel o herramientas de BI
+                      </p>
+                    </button>
                   </div>
                 </div>
               )}

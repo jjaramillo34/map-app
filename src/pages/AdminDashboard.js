@@ -11,15 +11,12 @@ import {
   CheckCircle,
   AlertCircle,
   Search,
-  Plus,
-  Edit,
 } from "lucide-react";
 import {
   getAllMunicipalityData,
   getMunicipalityData,
   saveMunicipalityData,
   deleteMunicipalityData,
-  getMunicipalityList,
 } from "../services/municipalityData";
 import {
   generateMunicipalityDescription,
@@ -66,6 +63,7 @@ const AdminDashboard = () => {
     } else {
       clearForm();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMunicipio]);
 
   const loadMunicipalities = async () => {

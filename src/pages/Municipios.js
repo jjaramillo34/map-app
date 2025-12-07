@@ -10,7 +10,6 @@ mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 export default function Municipios() {
   const mapContainer = useRef(null);
   const map = useRef(null);
-  const navigate = useNavigate();
   // set the initial state of the map to Puerto Rico
   const [lng] = useState(-66.5901);
   const [lat] = useState(18.2208);
@@ -678,9 +677,6 @@ export default function Municipios() {
           .filter(c => c && Array.isArray(c) && c.length >= 2);
 
         if (coordinates.length > 0) {
-          const lngs = coordinates.map(c => c[0]);
-          const lats = coordinates.map(c => c[1]);
-          
           const bounds = new mapboxgl.LngLatBounds();
           coordinates.forEach(([lng, lat]) => {
             bounds.extend([lng, lat]);

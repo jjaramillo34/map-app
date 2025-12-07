@@ -4,6 +4,7 @@
   "outputDirectory": "build",
   "installCommand": "npm install",
   "framework": "create-react-app",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD .",
   "rewrites": [
     {
       "source": "/api/(.*)",

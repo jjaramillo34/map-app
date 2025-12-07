@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Map, ChevronDown, Menu, MapPin, Layers3, Flame, Globe, BarChart3 } from "lucide-react";
+import { ChevronDown, Menu, MapPin, Layers3, Flame, Globe, BarChart3 } from "lucide-react";
 
 const Header = () => {
   const location = useLocation();

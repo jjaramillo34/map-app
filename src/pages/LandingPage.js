@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Map, Building2, Layers3, Flame, Globe, MapPin, Zap, BarChart3, Search, Brain } from "lucide-react";
+import { Map, Building2, Layers3, Flame, Globe, BarChart3, Search, Brain } from "lucide-react";
 import Layout from "../components/Layout";
 import MunicipalityAnalytics from "../components/MunicipalityAnalytics";
 

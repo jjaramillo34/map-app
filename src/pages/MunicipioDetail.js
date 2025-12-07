@@ -28,11 +28,8 @@ mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
 const MunicipioDetail = () => {
   const { municipioName } = useParams();
-  const navigate = useNavigate();
   const mapContainer = useRef(null);
   const map = useRef(null);
-  
-  const [data, setData] = useState(null);
   const [municipioData, setMunicipioData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
