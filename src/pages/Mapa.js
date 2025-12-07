@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from "react";
 import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-loader-syntax
-import geoJson from "./geojson.geojson";
+import geoJson from "../data/geojson.geojson";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
+import Layout from "../components/Layout";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -14,10 +15,10 @@ export default function Mapa() {
   const [zoom, setZoom] = useState(9);
 
   // read the data from the geojson file
-  const [data, setData] = useState(geoJson);
+  const [data] = useState(geoJson);
 
   // get the user's current location
-  const [currentLocation, setCurrentLocation] = useState(null);
+  const [currentLocation] = useState(null);
 
   // fly to the user's current location
   const flytoLocation = () => {
@@ -106,7 +107,6 @@ export default function Mapa() {
       new MapboxGeocoder({
         accessToken: mapboxgl.accessToken,
         mapboxgl: mapboxgl,
-        marker: true,
         flyTo: true,
         placeholder: "Buscar una dirección en Puerto Rico",
         // add a default location to the geocoder that will be used to limit the
@@ -226,89 +226,58 @@ export default function Mapa() {
   };
 
   return (
-    <div
-      className="container"
-      style={{
-        height: "100vh",
-        width: "100%",
-        position: "absolute",
-        top: "0",
-        left: "0",
-        zIndex: "1",
-      }}
-    >
-      <div
-        className="title"
-        style={{
-          position: "absolute",
-          top: "10%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          zIndex: "2",
-          padding: "10px",
-          backgroundColor: "white",
-          opacity: "0.8",
-        }}
-      >
-        <h1>Power Solar Map</h1>
-        <h2>Clientes de Energía Solar en Puerto Rico</h2>
-      </div>
-      <div
-        className="sidebar"
-        style={{
-          position: "absolute",
-          bottom: "0",
-          left: "0",
-          zIndex: "2",
-          padding: "10px",
-          backgroundColor: "white",
-          opacity: "0.9",
-        }}
-      >
-        Longitude: {lng} | Latitude: {lat} | Zoom: {zoom}
-        <span
-          className="copy-icon"
-          role="img"
-          aria-label="copy"
-          style={{
-            cursor: "pointer",
-            marginLeft: "10px",
-            fontSize: "1.5em",
-          }}
-          onClick={copyLocation}
-        >
-          📋
-        </span>
-      </div>
+    <Layout showFooter={false}>
+      <div className="relative w-full h-full overflow-hidden" style={{ height: "calc(100vh - 80px)" }}>
+        {/* Map Container */}
+        <div className="absolute top-0 left-0 w-full h-full z-[1]" ref={mapContainer} />
 
-      <div
-        className="flyto"
-        // style the button to the right of the map bottom
-        style={{
-          position: "absolute",
-          bottom: "0",
-          right: "0",
-          zIndex: "2",
-          padding: "10px",
-          backgroundColor: "white",
-          opacity: "0.9",
-        }}
-      >
-        <button onClick={flytoLocation}>Fly to my location</button>
-      </div>
+        {/* Info Panel */}
+        <div className="absolute bottom-4 md:bottom-8 left-4 md:left-8 z-10 bg-white/98 backdrop-blur-md rounded-2xl shadow-2xl min-w-[280px] overflow-hidden border border-black/5 md:max-w-none max-w-[calc(100vw-2rem)]">
+          <div className="px-4 py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white">
+            <h3 className="m-0 text-base font-semibold tracking-wide">Map Information</h3>
+          </div>
+          <div className="p-5">
+            <div className="flex justify-between items-center py-3 border-b border-black/5 last:border-b-0 last:mb-3">
+              <span className="text-xs text-gray-600 font-medium uppercase tracking-wider">Longitude</span>
+              <span className="text-sm text-gray-900 font-semibold font-mono">{lng}</span>
+            </div>
+            <div className="flex justify-between items-center py-3 border-b border-black/5 last:border-b-0 last:mb-3">
+              <span className="text-xs text-gray-600 font-medium uppercase tracking-wider">Latitude</span>
+              <span className="text-sm text-gray-900 font-semibold font-mono">{lat}</span>
+            </div>
+            <div className="flex justify-between items-center py-3 border-b border-black/5 last:border-b-0 last:mb-3">
+              <span className="text-xs text-gray-600 font-medium uppercase tracking-wider">Zoom</span>
+              <span className="text-sm text-gray-900 font-semibold font-mono">{zoom}</span>
+            </div>
+            <button
+              onClick={copyLocation}
+              title="Copy location"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white border-none rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 mt-2 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary-500/40 active:translate-y-0"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 2C4 1.44772 4.44772 1 5 1H11C11.5523 1 12 1.44772 12 2V6H13C13.5523 6 14 6.44772 14 7V13C14 13.5523 13.5523 14 13 14H7C6.44772 14 6 13.5523 6 13V12H5C4.44772 12 4 11.5523 4 11V2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 6H7C6.44772 6 6 6.44772 6 7V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Copy
+            </button>
+          </div>
+        </div>
 
-      <div
-        className="map-container"
-        ref={mapContainer}
-        style={{
-          height: "100vh",
-          width: "100%",
-          position: "absolute",
-          top: "0",
-          left: "0",
-          zIndex: "1",
-        }}
-      />
-    </div>
+        {/* Action Button */}
+        {currentLocation && (
+          <button
+            onClick={flytoLocation}
+            title="Fly to my location"
+            className="absolute bottom-4 md:bottom-8 right-4 md:right-8 z-10 flex items-center gap-2 py-3.5 px-6 bg-white/98 backdrop-blur-md border border-black/5 rounded-xl text-sm md:text-base font-semibold text-gray-900 cursor-pointer transition-all duration-200 shadow-lg hover:-translate-y-0.5 hover:shadow-xl hover:bg-white active:translate-y-0"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary-500">
+              <path d="M10 2C10 2 4 6 4 10C4 12.5 6.5 15 10 15C13.5 15 16 12.5 16 10C16 6 10 2 10 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
+            </svg>
+            My Location
+          </button>
+        )}
+      </div>
+    </Layout>
   );
 }

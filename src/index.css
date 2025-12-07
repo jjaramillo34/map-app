@@ -1,27 +1,124 @@
-/* Default styles for larger screens */
-.container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  width: 100vw;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Mapbox Geocoder Styling - Keep these as they override Mapbox defaults */
+.mapboxgl-ctrl-geocoder {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
   overflow: hidden;
 }
 
-.map-container {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  height: calc(100vh - 64px);
-  margin: 0 auto;
-  align-items: center;
-  justify-content: center;
-  display: flex;
-  padding-top: 156px;
+.mapboxgl-ctrl-geocoder--input {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(10px);
+  color: #1a1a1a !important;
+  z-index: 1 !important;
+  padding: 12px 16px !important;
+  font-weight: 500 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+  width: 380px !important;
+  font-size: 0.95rem !important;
+  border: none !important;
+  border-radius: 12px !important;
 }
 
+.mapboxgl-ctrl-geocoder--input::placeholder {
+  color: #999 !important;
+}
+
+.mapboxgl-ctrl-geocoder--input:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+}
+
+.mapboxgl-ctrl-geocoder--suggestion {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(10px);
+  color: #1a1a1a !important;
+  z-index: 1 !important;
+  padding: 12px 16px !important;
+  font-weight: 400 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+.mapboxgl-ctrl-geocoder--suggestion:hover,
+.mapboxgl-ctrl-geocoder--suggestion-active {
+  background-color: rgba(102, 126, 234, 0.1) !important;
+  color: #667eea !important;
+}
+
+.mapboxgl-ctrl-geocoder--button {
+  color: #667eea !important;
+  display: none;
+}
+
+/* Mapbox Controls Styling */
+.mapboxgl-ctrl-group {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(10px);
+}
+
+.mapboxgl-ctrl button {
+  border-radius: 0 !important;
+}
+
+.mapboxgl-ctrl button:hover {
+  background-color: rgba(102, 126, 234, 0.1) !important;
+}
+
+.mapboxgl-ctrl-geolocate {
+  border-radius: 12px !important;
+}
+
+/* Custom Popup Styling */
+.custom-popup .mapboxgl-popup-content {
+  padding: 0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+  overflow: hidden;
+}
+
+.custom-popup .mapboxgl-popup-close-button {
+  width: 28px;
+  height: 28px;
+  font-size: 20px;
+  color: #666;
+  padding: 4px;
+  right: 8px;
+  top: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  transition: all 0.2s ease;
+}
+
+.custom-popup .mapboxgl-popup-close-button:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.custom-popup .mapboxgl-popup-tip {
+  border-top-color: white !important;
+}
+
+/* Sidebar styles for other components */
 .sidebarStyle {
   display: inline-block;
   position: absolute;
@@ -46,89 +143,16 @@
   margin-right: 3px;
 }
 
-.title h1 {
-  margin: 0;
-  padding: 0;
-  color: #FF6800;
-}
-
-.title a {
-  color: #ffffff;
-  text-decoration: none;
-}
-
-.title a:hover {
-  color: #ffffff;
-  text-decoration: none;
-}
-
-.title a:active {
-  color: #ffffff;
-  text-decoration: none;
-}
-
-.title h2 {
-  margin: 0;
-  padding: 0;
-  color: #FF6800;
-}
-
-.mapboxgl-ctrl-geocoder--input {
-  background-color: #404040;
-  color: #ffffff;
-  z-index: 1 !important;
-  padding: 6px;
-  font-weight: bold;
-  font-family: 'Roboto', sans-serif;
-  width: 350px;
-  font-size: 1.5em;
-}
-
-.mapboxgl-ctrl-geocoder--suggestion {
-  background-color: #404040;
-  color: #ffffff;
-  z-index: 1 !important;
-  padding: 10px;
-  font-weight: bold;
-  font-family: 'Roboto', sans-serif;
-}
-
-.mapboxgl-ctrl-geocoder--button {
-  color: #ffffff;
-  display: none;
-}
-
-/* Mobile-responsive adjustments */
+/* Mobile responsive adjustments for Mapbox controls */
 @media (max-width: 768px) {
-  .container {
-    padding: 0 10px;
-    /* Add some padding to the container for smaller screens */
-  }
-
-  .map-container {
-    padding-top: 100px;
-    /* Adjust the top padding for the map container */
-  }
-
   .mapboxgl-ctrl-geocoder--input {
-    width: 100%;
-    /* Make the input full-width on smaller screens */
+    width: calc(100vw - 2rem) !important;
+    max-width: 100% !important;
+    font-size: 0.9rem !important;
   }
 
-  .mapboxgl-ctrl-geocoder--button {
-    display: block;
-    /* Display the button on smaller screens */
-  }
-
-  .title {
-    display: none;
-  }
-
-  .title h1 {
-    display: none;
-  }
-
-  .title h2 {
-    display: none;
+  .mapboxgl-ctrl-geocoder {
+    width: calc(100vw - 2rem) !important;
+    max-width: 100% !important;
   }
 }

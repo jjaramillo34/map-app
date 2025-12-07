@@ -1,25 +1,4 @@
-.map-container {
-  height: 80vh;
-  width: 80%;
-  margin: 0 auto;
-  position: relative;
-  top: 50%;
-}
-
+/* App-specific styles */
 .App {
-  text-align: center;
-}
-
-#map {
-  height: 400px;
-  /* Adjust as needed */
-  width: 100%;
-}
-
-.geofence-container {
-  position: relative;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 100%;
+  min-height: 100vh;
 }
