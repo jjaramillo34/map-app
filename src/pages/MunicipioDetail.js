@@ -58,8 +58,6 @@ const MunicipioDetail = () => {
           }
         }
         
-        setData(dataToLoad);
-        
         // Process municipality data
         if (dataToLoad && dataToLoad.features) {
           processMunicipioData(dataToLoad.features, decodedName);

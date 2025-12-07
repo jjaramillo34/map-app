@@ -3,7 +3,7 @@ import {
   BarChart3, TrendingUp, DollarSign, MapPin, 
   Brain, Target, AlertCircle, PieChart, Activity,
   Zap, Globe, Layers3, Loader2,
-  Map as MapIcon, TreePine
+  Map as MapIcon, TreePine, Download
 } from "lucide-react";
 import { 
   LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell,
