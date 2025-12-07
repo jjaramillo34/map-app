@@ -17,20 +17,35 @@ export const generateMunicipalityDescription = async (municipioName, stats = {})
 
   const prompt = `Escribe una descripción atractiva y profesional en español para el municipio de ${municipioName}, Puerto Rico. 
 
-Contexto:
+IMPORTANTE: Utiliza datos del Censo de Estados Unidos (US Census Bureau) y Wikipedia como fuentes principales.
+
+Contexto del municipio:
 - Clientes de energía solar: ${stats.customers || 'N/A'}
 - Ingreso promedio: $${stats.avgIncome?.toLocaleString() || 'N/A'}
 - Tasa de penetración solar: ${stats.penetrationRate || 'N/A'}%
 - Población promedio: ${stats.avgPopulation?.toLocaleString() || 'N/A'}
 
 La descripción debe:
-- Ser entre 150-250 palabras
+- Ser 500 palabras
+- Incluir datos demográficos detallados del Censo de Estados Unidos, incluyendo:
+  * Población total y densidad poblacional
+  * Ingresos medianos y per cápita
+  * Niveles de educación (porcentaje con educación superior, graduados de secundaria)
+  * Datos de vivienda (valor mediano de viviendas, porcentaje de propietarios vs. inquilinos)
+  * Datos de empleo (tasa de empleo, sectores económicos principales)
+  * Composición étnica y demográfica
+  * Edad promedio y distribución por grupos de edad
+- ESPECIFICAR EL AÑO DEL CENSO utilizado (ej: "según el Censo de 2020" o "datos del Censo 2010-2020")
+- Mencionar información histórica y cultural de Wikipedia
 - Destacar aspectos únicos del municipio
 - Mencionar el potencial de energía solar
 - Ser informativa pero atractiva
 - Incluir información sobre la adopción de energía solar si es relevante
+- Al final de la descripción, incluir una sección de "Fuentes:" con referencias a:
+  * "Censo de Estados Unidos [AÑO]" (US Census Bureau [YEAR])
+  * "Wikipedia - [nombre del municipio]"
 
-Escribe solo la descripción, sin títulos ni encabezados.`;
+Escribe la descripción completa incluyendo la sección de fuentes al final con el año específico del censo.`;
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -40,18 +55,18 @@ Escribe solo la descripción, sin títulos ni encabezados.`;
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4.1',
         messages: [
           {
             role: 'system',
-            content: 'Eres un experto en escribir descripciones atractivas sobre municipios de Puerto Rico, con enfoque en energía solar y desarrollo sostenible.',
+            content: 'Eres un experto en escribir descripciones atractivas sobre municipios de Puerto Rico, con enfoque en energía solar y desarrollo sostenible. Siempre utiliza datos del Censo de Estados Unidos (US Census Bureau) para información demográfica y estadística, especificando el año del censo utilizado (2020, 2010, etc.). Incluye datos detallados sobre población, ingresos, educación, vivienda, empleo y demografía. Utiliza Wikipedia para información histórica y cultural. Incluye siempre referencias a las fuentes utilizadas con el año específico del censo.',
           },
           {
             role: 'user',
             content: prompt,
           },
         ],
-        max_tokens: 300,
+        max_tokens: 700,
         temperature: 0.7,
       }),
     });
@@ -84,15 +99,38 @@ export const generateAdditionalContent = async (municipioName, stats = {}) => {
 
   const prompt = `Para el municipio de ${municipioName}, Puerto Rico, genera un JSON con:
 - tags: array de 3-5 palabras clave relevantes (ej: ["Turismo", "Energía Solar", "Cultura"])
-- highlights: array de 2-3 puntos destacados en una frase cada uno
-- funFact: un dato interesante sobre el municipio en una frase
+- highlights: array de 2-3 puntos destacados en una frase cada uno (basados en datos detallados del Censo o Wikipedia)
+- funFact: un dato interesante sobre el municipio en una frase (preferiblemente de Wikipedia o datos históricos)
+- sources: array de fuentes utilizadas con años específicos (ej: ["US Census Bureau 2020", "Wikipedia - ${municipioName}"])
+- censusYear: año del censo utilizado (ej: "2020" o "2010-2020")
 
-Datos del municipio:
+IMPORTANTE: 
+- Utiliza información detallada del Censo de Estados Unidos (US Census Bureau) para datos demográficos y estadísticos, incluyendo:
+  * Población y densidad
+  * Ingresos (mediano, per cápita)
+  * Educación (niveles de escolaridad)
+  * Vivienda (valor mediano, propiedad vs. alquiler)
+  * Empleo (tasa, sectores principales)
+  * Demografía (edad, etnicidad)
+- ESPECIFICA EL AÑO DEL CENSO utilizado (2020, 2010, etc.)
+- Utiliza Wikipedia para información histórica, cultural y datos curiosos
+- Incluye siempre al menos "US Census Bureau [AÑO]" y "Wikipedia - ${municipioName}" en las fuentes
+- El campo censusYear debe contener el año específico del censo (ej: "2020")
+
+Datos del municipio disponibles:
 - Clientes solares: ${stats.customers || 'N/A'}
 - Ingreso promedio: $${stats.avgIncome?.toLocaleString() || 'N/A'}
 - Penetración solar: ${stats.penetrationRate || 'N/A'}%
+- Población promedio: ${stats.avgPopulation?.toLocaleString() || 'N/A'}
 
-Responde SOLO con un JSON válido, sin texto adicional.`;
+Responde SOLO con un JSON válido en este formato:
+{
+  "tags": ["tag1", "tag2", "tag3"],
+  "highlights": ["highlight1 con datos específicos del censo", "highlight2"],
+  "funFact": "dato curioso",
+  "sources": ["US Census Bureau 2020", "Wikipedia - ${municipioName}"],
+  "censusYear": "2020"
+}`;
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -106,14 +144,14 @@ Responde SOLO con un JSON válido, sin texto adicional.`;
         messages: [
           {
             role: 'system',
-            content: 'Eres un experto en generar contenido estructurado sobre municipios de Puerto Rico. Responde siempre con JSON válido.',
+            content: 'Eres un experto en generar contenido estructurado sobre municipios de Puerto Rico. Siempre utiliza datos detallados del Censo de Estados Unidos (US Census Bureau) para información demográfica, especificando el año del censo utilizado. Incluye datos sobre población, ingresos, educación, vivienda, empleo y demografía. Utiliza Wikipedia para información histórica y cultural. Responde siempre con JSON válido incluyendo las fuentes utilizadas con años específicos y el campo censusYear.',
           },
           {
             role: 'user',
             content: prompt,
           },
         ],
-        max_tokens: 200,
+        max_tokens: 400,
         temperature: 0.7,
       }),
     });

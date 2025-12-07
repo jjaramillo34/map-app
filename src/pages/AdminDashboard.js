@@ -48,6 +48,8 @@ const AdminDashboard = () => {
   const [tags, setTags] = useState("");
   const [highlights, setHighlights] = useState("");
   const [funFact, setFunFact] = useState("");
+  const [sources, setSources] = useState("");
+  const [censusYear, setCensusYear] = useState("");
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -84,6 +86,8 @@ const AdminDashboard = () => {
         setTags(data.tags ? data.tags.join(", ") : "");
         setHighlights(data.highlights ? data.highlights.join("\n") : "");
         setFunFact(data.funFact || "");
+        setSources(data.sources ? data.sources.join(", ") : "");
+        setCensusYear(data.censusYear || "");
       } else {
         clearForm();
       }
@@ -98,6 +102,8 @@ const AdminDashboard = () => {
     setTags("");
     setHighlights("");
     setFunFact("");
+    setSources("");
+    setCensusYear("");
   };
 
   const handleLogout = () => {
@@ -146,6 +152,12 @@ const AdminDashboard = () => {
         if (additionalContent.funFact) {
           setFunFact(additionalContent.funFact);
         }
+        if (additionalContent.sources) {
+          setSources(additionalContent.sources.join(", "));
+        }
+        if (additionalContent.censusYear) {
+          setCensusYear(additionalContent.censusYear);
+        }
       } catch (err) {
         console.warn("Could not generate additional content:", err);
         // Continue even if additional content fails
@@ -187,6 +199,11 @@ const AdminDashboard = () => {
           .map((h) => h.trim())
           .filter((h) => h.length > 0),
         funFact: funFact.trim(),
+        sources: sources
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0),
+        censusYear: censusYear.trim(),
       };
 
       const success = await saveMunicipalityData(selectedMunicipio, data);
@@ -418,6 +435,40 @@ const AdminDashboard = () => {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                         placeholder="Un dato interesante sobre el municipio..."
                       />
+                    </div>
+
+                    {/* Sources */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fuentes (separadas por comas)
+                      </label>
+                      <input
+                        type="text"
+                        value={sources}
+                        onChange={(e) => setSources(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                        placeholder="US Census Bureau 2020, Wikipedia - [Municipio]..."
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Ejemplo: US Census Bureau 2020, Wikipedia - {selectedMunicipio}
+                      </p>
+                    </div>
+
+                    {/* Census Year */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Año del Censo
+                      </label>
+                      <input
+                        type="text"
+                        value={censusYear}
+                        onChange={(e) => setCensusYear(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                        placeholder="2020"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Año específico del Censo de Estados Unidos utilizado (ej: 2020, 2010)
+                      </p>
                     </div>
 
                     {/* Save Button */}

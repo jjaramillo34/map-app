@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-loader-syntax
 import geoJson from "../data/geojson.geojson";
 import Layout from "../components/Layout";
@@ -21,6 +21,7 @@ import {
   Tag,
   CheckCircle2,
   Lightbulb,
+  BookOpen,
 } from "lucide-react";
 import { getMunicipalityData } from "../services/municipalityData";
 
@@ -472,7 +473,7 @@ const MunicipioDetail = () => {
           </div>
 
           {/* Description Section */}
-          {extraData && (extraData.description || extraData.tags || extraData.highlights || extraData.funFact) && (
+          {extraData && (extraData.description || extraData.tags || extraData.highlights || extraData.funFact || extraData.sources || extraData.censusYear) && (
             <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-gray-100 mb-8 overflow-hidden relative">
               {/* Decorative gradient background */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary-50/50 to-transparent rounded-full blur-3xl -mr-32 -mt-32"></div>
@@ -490,7 +491,7 @@ const MunicipioDetail = () => {
                       {extraData.description.split('\n').map((paragraph, index) => (
                         <span key={index} className="block">
                           {paragraph}
-                          {index < extraData.description.split('\n').length - 1 && <><br /><br /></>}
+                          {index < extraData.description.split('\n').length - 1 && <><br /></>}
                         </span>
                       ))}
                     </p>
@@ -574,6 +575,42 @@ const MunicipioDetail = () => {
                   </div>
                 </>
               )}
+
+              {/* Sources Section */}
+              {(extraData.sources && extraData.sources.length > 0) || extraData.censusYear ? (
+                <>
+                  {(extraData.description || extraData.tags || extraData.highlights || extraData.funFact) && (
+                    <div className="border-t border-gray-200 my-8"></div>
+                  )}
+                  <div className="relative z-10 text-left">
+                    <div className="flex items-center gap-2.5 mb-4">
+                      <div className="p-2 bg-gray-100 rounded-lg">
+                        <BookOpen className="w-5 h-5 text-gray-600" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900">Fuentes</h3>
+                    </div>
+                    {extraData.censusYear && (
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 mb-2">
+                          <span className="font-semibold">Año del Censo:</span> {extraData.censusYear}
+                        </p>
+                      </div>
+                    )}
+                    {extraData.sources && extraData.sources.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {extraData.sources.map((source, index) => (
+                          <span
+                            key={index}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-200 transition-colors"
+                          >
+                            {source}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : null}
             </div>
           )}
 

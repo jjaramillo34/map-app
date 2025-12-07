@@ -214,6 +214,7 @@ const AnalyticsPage = () => {
     };
 
     analyzeData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // K-Means Clustering Algorithm
@@ -244,11 +245,14 @@ const AnalyticsPage = () => {
     for (let iter = 0; iter < 10; iter++) {
       clusters = Array(k).fill(null).map(() => []);
       
+      // Capture current centroids to avoid closure issues
+      const currentCentroids = [...centroids];
+      
       normalized.forEach((m, idx) => {
         let minDist = Infinity;
         let clusterIdx = 0;
         
-        centroids.forEach((centroid, cIdx) => {
+        currentCentroids.forEach((centroid, cIdx) => {
           const dist = Math.sqrt(
             Math.pow(m.normIncome - centroid.income, 2) +
             Math.pow(m.normPenetration - centroid.penetration, 2) +
