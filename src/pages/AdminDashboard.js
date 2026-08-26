@@ -32,7 +32,7 @@ import geoJson from "../data/geojson.geojson";
 
 // List of all Puerto Rico municipalities
 const ALL_MUNICIPALITIES = [
-  "Aguada", "Aguadilla", "Aguas Buenas", "Aibonito", "Añasco", "Arecibo",
+  "Adjuntas", "Aguada", "Aguadilla", "Aguas Buenas", "Aibonito", "Añasco", "Arecibo",
   "Arroyo", "Barceloneta", "Barranquitas", "Bayamón", "Cabo Rojo", "Caguas",
   "Camuy", "Canóvanas", "Carolina", "Cataño", "Cayey", "Ceiba", "Ciales",
   "Cidra", "Coamo", "Comerío", "Corozal", "Culebra", "Dorado", "Fajardo",
