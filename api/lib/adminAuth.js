@@ -77,7 +77,13 @@ function parseCookies(req) {
     if (eq === -1) return;
     const key = trimmed.slice(0, eq);
     const value = trimmed.slice(eq + 1);
-    cookies[key] = decodeURIComponent(value);
+    cookies[key] = (() => {
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return value;
+      }
+    })();
   });
   return cookies;
 }

@@ -75,10 +75,17 @@ export const computeGapScores = (municipios = []) => {
 };
 
 export const mergeMunicipalityProfiles = (municipios = [], profilesByName = {}) => {
-  const entries = Object.entries(profilesByName || {});
+  const profiles = Array.isArray(profilesByName)
+    ? Object.fromEntries(
+        profilesByName.filter((item) => item?.name).map((item) => [item.name, item])
+      )
+    : profilesByName && typeof profilesByName === "object"
+      ? profilesByName
+      : {};
+  const entries = Object.entries(profiles);
 
   const findProfile = (name) => {
-    if (profilesByName?.[name]) return profilesByName[name];
+    if (profiles[name]) return profiles[name];
     const match = entries.find(
       ([key]) => key.localeCompare(name, "es", { sensitivity: "base" }) === 0
     );

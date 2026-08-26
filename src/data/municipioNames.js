@@ -1,15 +1,4 @@
-export const ALL_MUNICIPALITIES = [
-  "Adjuntas", "Aguada", "Aguadilla", "Aguas Buenas", "Aibonito", "Añasco", "Arecibo",
-  "Arroyo", "Barceloneta", "Barranquitas", "Bayamón", "Cabo Rojo", "Caguas",
-  "Camuy", "Canóvanas", "Carolina", "Cataño", "Cayey", "Ceiba", "Ciales",
-  "Cidra", "Coamo", "Comerío", "Corozal", "Culebra", "Dorado", "Fajardo",
-  "Florida", "Guánica", "Guayama", "Guayanilla", "Guaynabo", "Gurabo",
-  "Hatillo", "Hormigueros", "Humacao", "Isabela", "Jayuya", "Juana Díaz",
-  "Juncos", "Lajas", "Lares", "Las Marías", "Las Piedras", "Loíza",
-  "Luquillo", "Manatí", "Maricao", "Maunabo", "Mayagüez", "Moca",
-  "Morovis", "Naguabo", "Naranjito", "Orocovis", "Patillas", "Peñuelas",
-  "Ponce", "Quebradillas", "Rincón", "Río Grande", "Sabana Grande",
-  "Salinas", "San Germán", "San Juan", "San Lorenzo", "San Sebastián",
-  "Santa Isabel", "Toa Alta", "Toa Baja", "Trujillo Alto", "Utuado",
-  "Vega Alta", "Vega Baja", "Vieques", "Villalba", "Yabucoa", "Yauco",
-];
+import ALL_MUNICIPALITIES from "./municipioNames.json";
+
+export { ALL_MUNICIPALITIES };
+export default ALL_MUNICIPALITIES;

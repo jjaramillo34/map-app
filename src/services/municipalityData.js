@@ -4,13 +4,29 @@
  * Falls back to localStorage if API is unavailable
  */
 
-const STORAGE_KEY = 'municipality_extra_data';
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/municipalities';
+const STORAGE_KEY = "municipality_extra_data";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "/api/municipalities";
+
+const emptyProfiles = () => ({});
+
+export const profilesFromResponse = (data) => {
+  if (!data) return emptyProfiles();
+  if (Array.isArray(data)) {
+    return data.reduce((acc, item) => {
+      if (item?.name) acc[item.name] = item;
+      return acc;
+    }, emptyProfiles());
+  }
+  if (typeof data === "object" && !data.error) {
+    return data;
+  }
+  return emptyProfiles();
+};
 
 const parseJsonResponse = async (response) => {
-  const contentType = response.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    throw new Error('API returned a non-JSON response');
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error("API returned a non-JSON response");
   }
   return response.json();
 };
@@ -23,19 +39,17 @@ export const getAllMunicipalityData = async () => {
   try {
     const response = await fetch(API_BASE_URL, { credentials: "include" });
     if (!response.ok) {
-      throw new Error('Failed to fetch from API');
+      throw new Error(`Failed to fetch from API (${response.status})`);
     }
-    const data = await parseJsonResponse(response);
-    return data || {};
+    return profilesFromResponse(await parseJsonResponse(response));
   } catch (error) {
-    console.warn('Error loading from MongoDB, falling back to localStorage:', error);
-    // Fallback to localStorage
+    console.warn("Error loading from MongoDB, falling back to localStorage:", error);
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : {};
+      return profilesFromResponse(stored ? JSON.parse(stored) : {});
     } catch (localError) {
-      console.error('Error loading from localStorage:', localError);
-      return {};
+      console.error("Error loading from localStorage:", localError);
+      return emptyProfiles();
     }
   }
 };
@@ -55,22 +69,22 @@ export const getMunicipalityData = async (municipioName) => {
       return null;
     }
     if (!response.ok) {
-      throw new Error('Failed to fetch from API');
+      throw new Error(`Failed to fetch from API (${response.status})`);
     }
-    return parseJsonResponse(response);
+    const data = await parseJsonResponse(response);
+    return data && !data.error ? data : null;
   } catch (error) {
-    console.warn('Error loading from MongoDB, falling back to localStorage:', error);
-    // Fallback to localStorage
+    console.warn("Error loading from MongoDB, falling back to localStorage:", error);
     try {
       const allData = getAllMunicipalityDataSync();
       const exact = allData[municipioName];
       if (exact) return exact;
       const match = Object.keys(allData).find(
-        (key) => key.localeCompare(municipioName, 'es', { sensitivity: 'base' }) === 0
+        (key) => key.localeCompare(municipioName, "es", { sensitivity: "base" }) === 0
       );
       return match ? allData[match] : null;
     } catch (localError) {
-      console.error('Error loading from localStorage:', localError);
+      console.error("Error loading from localStorage:", localError);
       return null;
     }
   }
@@ -85,11 +99,11 @@ export const getMunicipalityData = async (municipioName) => {
 export const saveMunicipalityData = async (municipioName, data) => {
   try {
     const response = await fetch(API_BASE_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      credentials: 'include',
+      credentials: "include",
       body: JSON.stringify({
         name: municipioName,
         ...data,
@@ -97,10 +111,9 @@ export const saveMunicipalityData = async (municipioName, data) => {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to save to API');
+      throw new Error("Failed to save to API");
     }
 
-    // Also save to localStorage as backup
     try {
       const allData = getAllMunicipalityDataSync();
       allData[municipioName] = {
@@ -110,13 +123,12 @@ export const saveMunicipalityData = async (municipioName, data) => {
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
     } catch (localError) {
-      console.warn('Could not save to localStorage backup:', localError);
+      console.warn("Could not save to localStorage backup:", localError);
     }
 
     return true;
   } catch (error) {
-    console.error('Error saving to MongoDB:', error);
-    // Fallback to localStorage
+    console.error("Error saving to MongoDB:", error);
     try {
       const allData = getAllMunicipalityDataSync();
       allData[municipioName] = {
@@ -127,7 +139,7 @@ export const saveMunicipalityData = async (municipioName, data) => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
       return true;
     } catch (localError) {
-      console.error('Error saving to localStorage:', localError);
+      console.error("Error saving to localStorage:", localError);
       return false;
     }
   }
@@ -142,34 +154,32 @@ export const deleteMunicipalityData = async (municipioName) => {
   try {
     const encodedName = encodeURIComponent(municipioName);
     const response = await fetch(`${API_BASE_URL}?name=${encodedName}`, {
-      method: 'DELETE',
-      credentials: 'include',
+      method: "DELETE",
+      credentials: "include",
     });
 
     if (!response.ok && response.status !== 404) {
-      throw new Error('Failed to delete from API');
+      throw new Error("Failed to delete from API");
     }
 
-    // Also remove from localStorage
     try {
       const allData = getAllMunicipalityDataSync();
       delete allData[municipioName];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
     } catch (localError) {
-      console.warn('Could not delete from localStorage backup:', localError);
+      console.warn("Could not delete from localStorage backup:", localError);
     }
 
     return true;
   } catch (error) {
-    console.error('Error deleting from MongoDB:', error);
-    // Fallback to localStorage
+    console.error("Error deleting from MongoDB:", error);
     try {
       const allData = getAllMunicipalityDataSync();
       delete allData[municipioName];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
       return true;
     } catch (localError) {
-      console.error('Error deleting from localStorage:', localError);
+      console.error("Error deleting from localStorage:", localError);
       return false;
     }
   }
@@ -181,7 +191,7 @@ export const deleteMunicipalityData = async (municipioName) => {
  */
 export const getMunicipalityList = async () => {
   const allData = await getAllMunicipalityData();
-  return Object.keys(allData);
+  return Object.keys(allData || {});
 };
 
 /**
@@ -191,10 +201,9 @@ export const getMunicipalityList = async () => {
 const getAllMunicipalityDataSync = () => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : {};
+    return profilesFromResponse(stored ? JSON.parse(stored) : {});
   } catch (error) {
-    console.error('Error loading from localStorage:', error);
-    return {};
+    console.error("Error loading from localStorage:", error);
+    return emptyProfiles();
   }
 };
-

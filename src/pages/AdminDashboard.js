@@ -111,7 +111,6 @@ const computeMunicipalityStats = (features = [], municipioName) => {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const [municipalities, setMunicipalities] = useState([]);
   const [selectedMunicipio, setSelectedMunicipio] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
@@ -159,10 +158,9 @@ const AdminDashboard = () => {
     try {
       const data = await getAllMunicipalityData();
       setProfiles(data || {});
-      setMunicipalities(Object.keys(data || {}));
     } catch (error) {
-      console.error('Error loading municipalities:', error);
-      setMunicipalities([]);
+      console.error("Error loading municipalities:", error);
+      setProfiles({});
     }
   };
 
@@ -507,9 +505,9 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                <div className="max-h-96 overflow-y-auto space-y-2">
+                <div className="max-h-[32rem] overflow-y-auto space-y-2">
                   {filteredMunicipalities.map((municipio) => {
-                    const hasData = municipalities.includes(municipio);
+                    const hasData = hasPublicProfile(findProfile(municipio, profiles));
                     return (
                       <button
                         key={municipio}
