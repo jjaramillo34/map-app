@@ -36,6 +36,7 @@ const MunicipioDetail = () => {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
   const [extraData, setExtraData] = useState(null);
+  const [mapStatus, setMapStatus] = useState("loading");
 
   // Decode municipality name from URL
   const decodedName = municipioName ? decodeURIComponent(municipioName) : "";
@@ -350,6 +351,12 @@ const MunicipioDetail = () => {
       map.current.on("mouseleave", "municipio-points", () => {
         map.current.getCanvas().style.cursor = "";
       });
+
+      setMapStatus("ready");
+    });
+
+    map.current.on("error", () => {
+      setMapStatus("error");
     });
 
     return () => {
@@ -425,6 +432,21 @@ const MunicipioDetail = () => {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+          <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-primary-100 bg-white/80 p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-primary-600">
+                Perfil municipal
+              </p>
+              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-600">
+                Explora la distribución de clientes solares y usa estos indicadores como punto de partida para entender el mercado local.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 text-sm font-semibold text-gray-700">
+              <Users className="h-4 w-4 text-primary-600" />
+              {stats.customers.toLocaleString()} registros
+            </div>
+          </div>
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
@@ -649,14 +671,56 @@ const MunicipioDetail = () => {
 
           {/* Map */}
           <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 mb-8">
-            <div className="p-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                <h2 className="text-xl font-bold">Mapa del Municipio</h2>
+            <div className="flex flex-col gap-3 bg-gradient-to-r from-primary-500 to-primary-600 p-4 text-white md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  <h2 className="text-xl font-bold">Mapa del Municipio</h2>
+                </div>
+                <p className="mt-1 pl-7 text-sm text-primary-100">
+                  Acerca el mapa para explorar la concentración de clientes.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 pl-7 text-xs font-medium md:pl-0">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-orange-400" />
+                  Cliente
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-blue-300" />
+                  Clúster
+                </span>
               </div>
             </div>
-            <div className="relative w-full" style={{ height: "600px" }}>
-              <div ref={mapContainer} className="absolute top-0 left-0 w-full h-full" />
+            <div className="relative h-[420px] w-full bg-gray-100 md:h-[560px]">
+              <div
+                ref={mapContainer}
+                aria-label={`Mapa de clientes solares en ${municipioData.name}`}
+                className="absolute left-0 top-0 h-full w-full"
+              />
+              {mapStatus !== "ready" && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-gray-50/85 p-6 text-center backdrop-blur-[1px]">
+                  <div className="max-w-sm rounded-2xl border border-gray-200 bg-white/95 px-6 py-5 shadow-lg">
+                    {mapStatus === "error" ? (
+                      <>
+                        <AlertCircle className="mx-auto mb-3 h-8 w-8 text-red-500" />
+                        <p className="font-semibold text-gray-900">No se pudo cargar el mapa</p>
+                        <p className="mt-1 text-sm text-gray-600">
+                          Los indicadores del municipio siguen disponibles.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-primary-600" />
+                        <p className="font-semibold text-gray-900">Cargando mapa...</p>
+                        <p className="mt-1 text-sm text-gray-600">
+                          Preparando los puntos de energía solar.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -684,4 +748,3 @@ const MunicipioDetail = () => {
 };
 
 export default MunicipioDetail;
-
