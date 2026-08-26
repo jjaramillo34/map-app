@@ -1182,9 +1182,13 @@ const AnalyticsPage = () => {
             <div ref={navigationRef} className="border-b border-gray-200">
               <nav
                 aria-label="Secciones de analytics"
+                role="tablist"
                 className="flex flex-wrap items-center gap-2 px-4 py-3"
               >
                 <button
+                  type="button"
+                  id="analytics-tab-overview"
+                  aria-controls="analytics-panel"
                   onClick={() => {
                     setActiveTab("overview");
                     setOpenMenu(null);
@@ -1195,12 +1199,15 @@ const AnalyticsPage = () => {
                     activeTab === "overview"
                       ? "bg-primary-50 text-primary-700"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
+                    } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
                 >
                   <BarChart3 className="h-4 w-4" />
                   Resumen
                 </button>
                 <button
+                  type="button"
+                  id="analytics-tab-compare"
+                  aria-controls="analytics-panel"
                   onClick={() => {
                     setActiveTab("compare");
                     setOpenMenu(null);
@@ -1211,7 +1218,7 @@ const AnalyticsPage = () => {
                     activeTab === "compare"
                       ? "bg-primary-50 text-primary-700"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
+                    } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
                 >
                   <Activity className="h-4 w-4" />
                   Comparar
@@ -1228,7 +1235,7 @@ const AnalyticsPage = () => {
                         onClick={() => setOpenMenu(isOpen ? null : group.id)}
                         aria-expanded={isOpen}
                         aria-haspopup="menu"
-                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
                           isActive
                             ? "bg-primary-50 text-primary-700"
                             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -1256,7 +1263,7 @@ const AnalyticsPage = () => {
                                   setActiveTab(tab.id);
                                   setOpenMenu(null);
                                 }}
-                                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
+                                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
                                   activeTab === tab.id
                                     ? "bg-primary-50 font-semibold text-primary-700"
                                     : "text-gray-700 hover:bg-gray-50"
@@ -1274,6 +1281,9 @@ const AnalyticsPage = () => {
                 })}
 
                 <button
+                  type="button"
+                  id="analytics-tab-export"
+                  aria-controls="analytics-panel"
                   onClick={() => {
                     setActiveTab("export");
                     setOpenMenu(null);
@@ -1284,7 +1294,7 @@ const AnalyticsPage = () => {
                     activeTab === "export"
                       ? "bg-primary-50 text-primary-700"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
+                    } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
                 >
                   <Download className="h-4 w-4" />
                   Exportar
@@ -1292,7 +1302,14 @@ const AnalyticsPage = () => {
               </nav>
             </div>
 
-            <div className="p-6" aria-live="polite">
+            <div
+              id="analytics-panel"
+              className="p-4 sm:p-6"
+              role="tabpanel"
+              tabIndex="0"
+              aria-label="Contenido de analytics"
+              aria-live="polite"
+            >
               {/* Comparison Tab */}
               {activeTab === "compare" && (
                 <div className="space-y-6">
@@ -2131,8 +2148,9 @@ const AnalyticsPage = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <button
+                      type="button"
                       onClick={exportToPDF}
-                      className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-red-50 to-red-100 rounded-xl border-2 border-red-200 hover:border-red-400 transition-all hover:shadow-lg"
+                      className="flex min-h-48 flex-col items-center justify-center rounded-xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-red-100 p-6 transition-all hover:border-red-400 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:p-8"
                     >
                       <Download className="w-12 h-12 text-red-600 mb-4" />
                       <h3 className="text-xl font-bold text-gray-900 mb-2">Exportar a PDF</h3>
@@ -2142,8 +2160,9 @@ const AnalyticsPage = () => {
                     </button>
 
                     <button
+                      type="button"
                       onClick={exportToCSV}
-                      className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all hover:shadow-lg"
+                      className="flex min-h-48 flex-col items-center justify-center rounded-xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-green-100 p-6 transition-all hover:border-green-400 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 sm:p-8"
                     >
                       <Download className="w-12 h-12 text-green-600 mb-4" />
                       <h3 className="text-xl font-bold text-gray-900 mb-2">Exportar a CSV</h3>
