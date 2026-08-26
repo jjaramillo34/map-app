@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-loader-syntax
 import geoJson from "../data/geojson.geojson";
@@ -23,6 +23,19 @@ export default function Municipios() {
 
   // municipality filter state
   const [selectedMunicipality, setSelectedMunicipality] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
+
+  const municipalityOptions = useMemo(() => {
+    if (!data?.features) return [];
+
+    const names = data.features.flatMap((feature) => {
+      const properties = feature.properties || {};
+      const county = properties.County?.replace(" Municipio", "").trim();
+      return [county, properties.Municipio, properties.City].filter(Boolean);
+    });
+
+    return [...new Set(names)].sort((a, b) => a.localeCompare(b, "es"));
+  }, [data]);
 
   // Load geojson data
   useEffect(() => {
@@ -707,7 +720,8 @@ export default function Municipios() {
       navigator.clipboard.writeText(
         `Latitude: ${lat} | Longitude: ${lng} | Zoom: ${zoom}`
       );
-      alert("Location copied to clipboard");
+      setIsCopied(true);
+      window.setTimeout(() => setIsCopied(false), 1800);
     } catch (err) {
       console.error("Failed to copy: ", err);
     }
@@ -721,95 +735,49 @@ export default function Municipios() {
       <div className="relative w-full h-full overflow-hidden" style={{ height: "calc(100vh - 80px)" }}>
         {/* Municipality Dropdown */}
         <div
-          className="absolute top-4 left-4 z-10 bg-white/98 backdrop-blur-md rounded-lg shadow-lg border border-black/5 flex items-center gap-2"
+          className="absolute left-4 right-4 top-4 z-10 flex flex-col gap-3 rounded-2xl border border-black/5 bg-white/95 p-3 shadow-xl backdrop-blur-md sm:left-6 sm:right-auto sm:min-w-[360px]"
         >
-          <div className="px-4 py-2 flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary-600" />
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-primary-50 p-2">
+              <MapPin className="h-5 w-5 text-primary-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary-600">
+                Explorar municipios
+              </p>
+              <p className="mt-0.5 text-sm text-gray-500">
+                Selecciona una zona para acercarte en el mapa.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <select
               id="municipality"
               value={selectedMunicipality}
               onChange={(e) => setSelectedMunicipality(e.target.value)}
-              className="text-sm font-medium text-gray-700 bg-transparent border-none outline-none cursor-pointer"
+              aria-label="Seleccionar municipio"
+              className="min-w-0 flex-1 cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
             >
-            <option value="">Seleccionar municipio</option>
-          <option value="Aguada">Aguada</option>
-          <option value="Aguadilla">Aguadilla</option>
-          <option value="Aguas Buenas">Aguas Buenas</option>
-          <option value="Aibonito">Aibonito</option>
-          <option value="Añasco">Añasco</option>
-          <option value="Arecibo">Arecibo</option>
-          <option value="Arroyo">Arroyo</option>
-          <option value="Barceloneta">Barceloneta</option>
-          <option value="Barranquitas">Barranquitas</option>
-          <option value="Bayamón">Bayamón</option>
-          <option value="Cabo Rojo">Cabo Rojo</option>
-          <option value="Caguas">Caguas</option>
-          <option value="Camuy">Camuy</option>
-          <option value="Canóvanas">Canóvanas</option>
-          <option value="Carolina">Carolina</option>
-          <option value="Cataño">Cataño</option>
-          <option value="Cayey">Cayey</option>
-          <option value="Ceiba">Ceiba</option>
-          <option value="Ciales">Ciales</option>
-          <option value="Cidra">Cidra</option>
-          <option value="Coamo">Coamo</option>
-          <option value="Comerío">Comerío</option>
-          <option value="Corozal">Corozal</option>
-          <option value="Culebra">Culebra</option>
-          <option value="Dorado">Dorado</option>
-          <option value="Fajardo">Fajardo</option>
-          <option value="Florida">Florida</option>
-          <option value="Guánica">Guánica</option>
-          <option value="Guayama">Guayama</option>
-          <option value="Guayanilla">Guayanilla</option>
-          <option value="Guaynabo">Guaynabo</option>
-          <option value="Gurabo">Gurabo</option>
-          <option value="Hatillo">Hatillo</option>
-          <option value="Hormigueros">Hormigueros</option>
-          <option value="Humacao">Humacao</option>
-          <option value="Isabela">Isabela</option>
-          <option value="Jayuya">Jayuya</option>
-          <option value="Juana Díaz">Juana Díaz</option>
-          <option value="Juncos">Juncos</option>
-          <option value="Lajas">Lajas</option>
-          <option value="Lares">Lares</option>
-          <option value="Las Marías">Las Marías</option>
-          <option value="Las Piedras">Las Piedras</option>
-          <option value="Loíza">Loíza</option>
-          <option value="Luquillo">Luquillo</option>
-          <option value="Manatí">Manatí</option>
-          <option value="Maricao">Maricao</option>
-          <option value="Maunabo">Maunabo</option>
-          <option value="Mayagüez">Mayagüez</option>
-          <option value="Moca">Moca</option>
-          <option value="Morovis">Morovis</option>
-          <option value="Naguabo">Naguabo</option>
-          <option value="Naranjito">Naranjito</option>
-          <option value="Orocovis">Orocovis</option>
-          <option value="Patillas">Patillas</option>
-          <option value="Peñuelas">Peñuelas</option>
-          <option value="Ponce">Ponce</option>
-          <option value="Quebradillas">Quebradillas</option>
-          <option value="Rincón">Rincón</option>
-          <option value="Río Grande">Río Grande</option>
-          <option value="Sabana Grande">Sabana Grande</option>
-          <option value="Salinas">Salinas</option>
-          <option value="San Germán">San Germán</option>
-          <option value="San Juan">San Juan</option>
-          <option value="San Lorenzo">San Lorenzo</option>
-          <option value="San Sebastián">San Sebastián</option>
-          <option value="Santa Isabel">Santa Isabel</option>
-          <option value="Toa Alta">Toa Alta</option>
-          <option value="Toa Baja">Toa Baja</option>
-          <option value="Trujillo Alto">Trujillo Alto</option>
-          <option value="Utuado">Utuado</option>
-          <option value="Vega Alta">Vega Alta</option>
-          <option value="Vega Baja">Vega Baja</option>
-          <option value="Vieques">Vieques</option>
-          <option value="Villalba">Villalba</option>
-          <option value="Yabucoa">Yabucoa</option>
-          <option value="Yauco">Yauco</option>
-        </select>
+              <option value="">
+                {data ? "Seleccionar municipio" : "Cargando municipios..."}
+              </option>
+              {municipalityOptions.map((municipality) => (
+                <option key={municipality} value={municipality}>
+                  {municipality}
+                </option>
+              ))}
+            </select>
+            {selectedMunicipality && (
+              <button
+                type="button"
+                onClick={() => setSelectedMunicipality("")}
+                className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+                aria-label="Limpiar municipio seleccionado"
+                title="Limpiar selección"
+              >
+                ×
+              </button>
+            )}
           </div>
           {selectedMunicipality && (
             <Link
@@ -817,7 +785,7 @@ export default function Municipios() {
               className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors flex items-center gap-2 whitespace-nowrap"
             >
               <ExternalLink className="w-4 h-4" />
-              Ver Detalles
+              Ver detalles
             </Link>
           )}
         </div>
@@ -827,7 +795,7 @@ export default function Municipios() {
           className="absolute bottom-4 md:bottom-8 left-4 md:left-8 z-10 bg-white/98 backdrop-blur-md rounded-2xl shadow-2xl min-w-[280px] overflow-hidden border border-black/5 md:max-w-none max-w-[calc(100vw-2rem)]"
         >
           <div className="px-4 py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white">
-            <h3 className="m-0 text-base font-semibold tracking-wide">Map Information</h3>
+            <h3 className="m-0 text-base font-semibold tracking-wide">Información del mapa</h3>
           </div>
           <div className="p-5">
             <div className="flex justify-between items-center py-3 border-b border-black/5 last:border-b-0 last:mb-3">
@@ -851,7 +819,7 @@ export default function Municipios() {
                 <path d="M4 2C4 1.44772 4.44772 1 5 1H11C11.5523 1 12 1.44772 12 2V6H13C13.5523 6 14 6.44772 14 7V13C14 13.5523 13.5523 14 13 14H7C6.44772 14 6 13.5523 6 13V12H5C4.44772 12 4 11.5523 4 11V2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M12 6H7C6.44772 6 6 6.44772 6 7V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Copy
+              {isCopied ? "Copiado" : "Copiar ubicación"}
             </button>
           </div>
         </div>
