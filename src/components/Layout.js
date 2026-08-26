@@ -1,6 +1,7 @@
 import React from "react";
 import Header from "./Header";
 import Footer from "./Footer";
+import ScrollToTop from "./ScrollToTop";
 
 const Layout = ({ children, showFooter = true }) => {
   return (
@@ -10,6 +11,7 @@ const Layout = ({ children, showFooter = true }) => {
         {children}
       </main>
       {showFooter && <Footer />}
+      <ScrollToTop />
     </div>
   );
 };

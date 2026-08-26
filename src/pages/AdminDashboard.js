@@ -132,6 +132,10 @@ const AdminDashboard = () => {
   const [geoFeatures, setGeoFeatures] = useState([]);
   const [geminiModel, setGeminiModel] = useState(getSavedGeminiModel);
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   useEffect(() => {
     loadMunicipalities();
     resolveGeoJson(geoJson)
@@ -144,6 +148,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (selectedMunicipio) {
       loadMunicipioData(selectedMunicipio);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       clearForm();
     }
@@ -294,6 +299,7 @@ const AdminDashboard = () => {
       if (success) {
         setMessage({ type: "success", text: "Datos guardados exitosamente en MongoDB" });
         await loadMunicipalities();
+        scrollToTop();
       } else {
         setMessage({ type: "error", text: "Error al guardar los datos" });
       }
@@ -432,20 +438,36 @@ const AdminDashboard = () => {
             {/* Right Side - Form */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <div className="flex items-center justify-between mb-6">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-2xl font-bold text-gray-900">
                     {selectedMunicipio
                       ? `Editar: ${selectedMunicipio}`
                       : "Seleccione un municipio"}
                   </h2>
                   {selectedMunicipio && (
-                    <button
-                      onClick={handleDelete}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Eliminar
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={loading}
+                        className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary-600 to-primary-700 px-4 py-2 text-sm font-semibold text-white transition-all hover:from-primary-700 hover:to-primary-800 disabled:opacity-50"
+                      >
+                        {loading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        {loading ? "Guardando..." : "Guardar"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Eliminar
+                      </button>
+                    </div>
                   )}
                 </div>
 
