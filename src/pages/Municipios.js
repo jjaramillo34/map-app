@@ -4,6 +4,15 @@ import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-load
 import geoJson from "../data/geojson.geojson";
 import Layout from "../components/Layout";
 import { ExternalLink, MapPin } from "lucide-react";
+import {
+  addMunicipalityBoundaryLayers,
+  fitMapToMunicipality,
+  highlightMunicipality,
+  loadMunicipalityBoundaries,
+  municipalityNames,
+  officialMunicipalityName,
+  withCustomerCounts,
+} from "../utils/municipalityBoundaries";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -17,6 +26,7 @@ export default function Municipios() {
 
   // read the data from the geojson file
   const [data, setData] = useState(null);
+  const [boundaries, setBoundaries] = useState(null);
 
   // get the user's current location
   const [currentLocation] = useState(null);
@@ -26,16 +36,17 @@ export default function Municipios() {
   const [isCopied, setIsCopied] = useState(false);
 
   const municipalityOptions = useMemo(() => {
-    if (!data?.features) return [];
+    const fromBoundaries = municipalityNames(boundaries);
+    if (fromBoundaries.length) return fromBoundaries;
 
+    if (!data?.features) return [];
     const names = data.features.flatMap((feature) => {
       const properties = feature.properties || {};
       const county = properties.County?.replace(" Municipio", "").trim();
       return [county, properties.Municipio, properties.City].filter(Boolean);
     });
-
     return [...new Set(names)].sort((a, b) => a.localeCompare(b, "es"));
-  }, [data]);
+  }, [boundaries, data]);
 
   // Load geojson data
   useEffect(() => {
@@ -66,6 +77,12 @@ export default function Municipios() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    loadMunicipalityBoundaries()
+      .then(setBoundaries)
+      .catch((error) => console.error("[Municipios] Error loading boundaries:", error));
+  }, []);
+
   // fly to the user's current location
   const flytoLocation = () => {
     if (map.current && currentLocation) {
@@ -77,14 +94,14 @@ export default function Municipios() {
   };
 
   useEffect(() => {
-    if (map.current || !data) return; // initialize map only once and wait for data
+    if (map.current || !data || !boundaries) return; // initialize map only once and wait for data
 
     // initialize the map object
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/light-v10",
       center: [lng, lat],
-      zoom: 14,
+      zoom: 9,
       bearing: 0,
       pitch: 0,
     });
@@ -249,9 +266,19 @@ export default function Municipios() {
       if (!map.current) return;
       
       // Wait for data to be loaded
-      if (!data) {
+      if (!data || !boundaries) {
         console.log("[Municipios] Waiting for data to load...");
         return;
+      }
+
+      if (!map.current.getSource("municipality-boundaries")) {
+        addMunicipalityBoundaryLayers(map.current, {
+          data: withCustomerCounts(boundaries, data),
+          theme: "light",
+          interactive: true,
+          choroplethProperty: "customerCount",
+          onSelect: (name) => setSelectedMunicipality(name),
+        });
       }
       
       // Check if source already exists
@@ -575,7 +602,7 @@ export default function Municipios() {
     map.current.on("load", loadHandler);
     
     // Also try to set up layers if map is already loaded and we have data
-    if (map.current.isStyleLoaded() && data) {
+    if (map.current.isStyleLoaded() && data && boundaries) {
       setupMapLayers();
     }
     
@@ -585,13 +612,14 @@ export default function Municipios() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [data, boundaries]);
 
   // Handle municipality filter change
   useEffect(() => {
     if (!map.current || !map.current.isStyleLoaded() || !data) return;
-    
-    console.log("[Municipios] Filtering by municipality:", selectedMunicipality);
+
+    const officialName = officialMunicipalityName(boundaries, selectedMunicipality);
+    highlightMunicipality(map.current, selectedMunicipality ? officialName : "");
     
     // Create filter that checks both County and Municipio properties
     const filter = selectedMunicipality
@@ -672,7 +700,10 @@ export default function Municipios() {
     }
 
     // Zoom to filtered municipality if one is selected
-    if (selectedMunicipality && data && data.features) {
+    if (selectedMunicipality) {
+      if (fitMapToMunicipality(map.current, boundaries, officialName)) {
+        return;
+      }
       // Find all features matching the selected municipality
       const matchingFeatures = data.features.filter((feature) => {
         const county = feature.properties?.County?.replace(" Municipio", "").trim();
@@ -713,7 +744,7 @@ export default function Municipios() {
         duration: 1000
       });
     }
-  }, [selectedMunicipality, data, lng, lat]);
+  }, [selectedMunicipality, data, boundaries, lng, lat]);
 
   const copyLocation = () => {
     try {
@@ -746,7 +777,7 @@ export default function Municipios() {
                 Explorar municipios
               </p>
               <p className="mt-0.5 text-sm text-gray-500">
-                Selecciona una zona para acercarte en el mapa.
+                Selecciona un municipio o haz clic en el mapa para ver sus límites.
               </p>
             </div>
           </div>
@@ -788,6 +819,20 @@ export default function Municipios() {
               Ver detalles
             </Link>
           )}
+          <div className="flex flex-wrap items-center gap-3 px-1 text-[11px] font-medium text-gray-500">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm bg-blue-200" />
+              Menos clientes
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm bg-primary-700" />
+              Más clientes
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm bg-orange-500" />
+              Seleccionado
+            </span>
+          </div>
         </div>
 
         {/* Location Info Panel */}

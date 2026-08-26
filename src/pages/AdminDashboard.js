@@ -11,6 +11,8 @@ import {
   CheckCircle,
   AlertCircle,
   Search,
+  MapPin,
+  Zap,
 } from "lucide-react";
 import {
   getAllMunicipalityData,
@@ -18,10 +20,9 @@ import {
   saveMunicipalityData,
   deleteMunicipalityData,
 } from "../services/municipalityData";
-import {
-  generateMunicipalityDescription,
-  generateAdditionalContent,
-} from "../services/openaiService";
+import { logoutAdmin } from "../services/adminAuth";
+import { generateMunicipalityProfile } from "../services/geminiService";
+import geoJson from "../data/geojson.geojson";
 
 // List of all Puerto Rico municipalities
 const ALL_MUNICIPALITIES = [
@@ -40,6 +41,72 @@ const ALL_MUNICIPALITIES = [
   "Vega Alta", "Vega Baja", "Vieques", "Villalba", "Yabucoa", "Yauco",
 ];
 
+const namesMatch = (left, right) =>
+  String(left || "").localeCompare(String(right || ""), "es", {
+    sensitivity: "base",
+  }) === 0;
+
+const resolveGeoJson = async (data) => {
+  if (typeof data === "string" && (data.startsWith("/") || data.startsWith("http"))) {
+    const response = await fetch(data);
+    return response.json();
+  }
+  if (typeof data === "string") {
+    return JSON.parse(data);
+  }
+  return data;
+};
+
+const computeMunicipalityStats = (features = [], municipioName) => {
+  const selected = features.filter((feature) => {
+    const props = feature.properties || {};
+    const county = props.County
+      ? props.County.replace(" Municipio", "").trim()
+      : "";
+    return (
+      namesMatch(county, municipioName) ||
+      namesMatch(props.City, municipioName) ||
+      namesMatch(props.Municipio, municipioName)
+    );
+  });
+
+  if (selected.length === 0) return {};
+
+  let totalIncome = 0;
+  let incomeCount = 0;
+  let totalPopulation = 0;
+  let populationCount = 0;
+
+  selected.forEach((feature) => {
+    const props = feature.properties || {};
+    const income = props.Income || props.IncomePerCap || 0;
+    const population = props.TotalPop || props.Population || 0;
+    if (income > 0) {
+      totalIncome += income;
+      incomeCount++;
+    }
+    if (population > 0) {
+      totalPopulation += population;
+      populationCount++;
+    }
+  });
+
+  const avgIncome = incomeCount > 0 ? Math.round(totalIncome / incomeCount) : 0;
+  const avgPopulation =
+    populationCount > 0 ? Math.round(totalPopulation / populationCount) : 0;
+  const penetrationRate =
+    avgPopulation > 0
+      ? parseFloat(((selected.length / avgPopulation) * 100).toFixed(2))
+      : 0;
+
+  return {
+    customers: selected.length,
+    avgIncome,
+    avgPopulation,
+    penetrationRate,
+  };
+};
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [municipalities, setMunicipalities] = useState([]);
@@ -48,15 +115,23 @@ const AdminDashboard = () => {
   const [tags, setTags] = useState("");
   const [highlights, setHighlights] = useState("");
   const [funFact, setFunFact] = useState("");
+  const [pointsOfInterest, setPointsOfInterest] = useState("");
+  const [solarOpportunity, setSolarOpportunity] = useState("");
   const [sources, setSources] = useState("");
   const [censusYear, setCensusYear] = useState("");
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [searchTerm, setSearchTerm] = useState("");
+  const [geoFeatures, setGeoFeatures] = useState([]);
 
   useEffect(() => {
     loadMunicipalities();
+    resolveGeoJson(geoJson)
+      .then((data) => setGeoFeatures(data?.features || []))
+      .catch((error) => {
+        console.error("Error loading customer geojson:", error);
+      });
   }, []);
 
   useEffect(() => {
@@ -86,6 +161,10 @@ const AdminDashboard = () => {
         setTags(data.tags ? data.tags.join(", ") : "");
         setHighlights(data.highlights ? data.highlights.join("\n") : "");
         setFunFact(data.funFact || "");
+        setPointsOfInterest(
+          data.pointsOfInterest ? data.pointsOfInterest.join("\n") : ""
+        );
+        setSolarOpportunity(data.solarOpportunity || "");
         setSources(data.sources ? data.sources.join(", ") : "");
         setCensusYear(data.censusYear || "");
       } else {
@@ -102,13 +181,14 @@ const AdminDashboard = () => {
     setTags("");
     setHighlights("");
     setFunFact("");
+    setPointsOfInterest("");
+    setSolarOpportunity("");
     setSources("");
     setCensusYear("");
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("admin_authenticated");
-    sessionStorage.removeItem("admin_login_time");
+  const handleLogout = async () => {
+    await logoutAdmin();
     navigate("/admin");
   };
 
@@ -122,56 +202,45 @@ const AdminDashboard = () => {
     setMessage({ type: "", text: "" });
 
     try {
-      // Mock stats - in real app, you'd fetch these from analytics
-      const mockStats = {
-        customers: Math.floor(Math.random() * 1000) + 100,
-        avgIncome: Math.floor(Math.random() * 50000) + 20000,
-        penetrationRate: (Math.random() * 5 + 1).toFixed(2),
-        avgPopulation: Math.floor(Math.random() * 50000) + 10000,
-      };
-
-      // Generate description
-      const generatedDescription = await generateMunicipalityDescription(
-        selectedMunicipio,
-        mockStats
-      );
-      setDescription(generatedDescription);
-
-      // Generate additional content
-      try {
-        const additionalContent = await generateAdditionalContent(
-          selectedMunicipio,
-          mockStats
-        );
-        if (additionalContent.tags) {
-          setTags(additionalContent.tags.join(", "));
-        }
-        if (additionalContent.highlights) {
-          setHighlights(additionalContent.highlights.join("\n"));
-        }
-        if (additionalContent.funFact) {
-          setFunFact(additionalContent.funFact);
-        }
-        if (additionalContent.sources) {
-          setSources(additionalContent.sources.join(", "));
-        }
-        if (additionalContent.censusYear) {
-          setCensusYear(additionalContent.censusYear);
-        }
-      } catch (err) {
-        console.warn("Could not generate additional content:", err);
-        // Continue even if additional content fails
+      let features = geoFeatures;
+      if (!features.length) {
+        const data = await resolveGeoJson(geoJson);
+        features = data?.features || [];
+        setGeoFeatures(features);
       }
+
+      const stats = computeMunicipalityStats(features, selectedMunicipio);
+      const profile = await generateMunicipalityProfile(
+        selectedMunicipio,
+        stats
+      );
+
+      setDescription(profile.description || "");
+      setTags(profile.tags?.length ? profile.tags.join(", ") : "");
+      setHighlights(
+        profile.highlights?.length ? profile.highlights.join("\n") : ""
+      );
+      setFunFact(profile.funFact || "");
+      setPointsOfInterest(
+        profile.pointsOfInterest?.length
+          ? profile.pointsOfInterest.join("\n")
+          : ""
+      );
+      setSolarOpportunity(profile.solarOpportunity || "");
+      setSources(profile.sources?.length ? profile.sources.join(", ") : "");
+      setCensusYear(profile.censusYear || "");
 
       setMessage({
         type: "success",
-        text: "Contenido generado exitosamente con IA",
+        text: "Contenido generado con Gemini usando datos reales del mapa",
       });
     } catch (error) {
       console.error("Error generating content:", error);
       setMessage({
         type: "error",
-        text: error.message || "Error al generar contenido. Verifique su API key de OpenAI.",
+        text:
+          error.message ||
+          "Error al generar contenido. Verifique REACT_APP_GEMINI_API_KEY.",
       });
     } finally {
       setGenerating(false);
@@ -199,6 +268,11 @@ const AdminDashboard = () => {
           .map((h) => h.trim())
           .filter((h) => h.length > 0),
         funFact: funFact.trim(),
+        pointsOfInterest: pointsOfInterest
+          .split("\n")
+          .map((item) => item.trim())
+          .filter((item) => item.length > 0),
+        solarOpportunity: solarOpportunity.trim(),
         sources: sources
           .split(",")
           .map((s) => s.trim())
@@ -383,7 +457,7 @@ const AdminDashboard = () => {
                           ) : (
                             <Sparkles className="w-4 h-4" />
                           )}
-                          {generating ? "Generando..." : "Generar con IA"}
+                          {generating ? "Generando..." : "Generar con Gemini"}
                         </button>
                       </div>
                       <textarea
@@ -434,6 +508,37 @@ const AdminDashboard = () => {
                         onChange={(e) => setFunFact(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                         placeholder="Un dato interesante sobre el municipio..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <MapPin className="h-4 w-4 text-primary-600" />
+                        Puntos de interés (uno por línea)
+                      </label>
+                      <textarea
+                        value={pointsOfInterest}
+                        onChange={(e) => setPointsOfInterest(e.target.value)}
+                        rows={4}
+                        className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-transparent focus:ring-2 focus:ring-primary-500"
+                        placeholder="Plaza de Recreo — centro comercial del casco&#10;Hospital o parque industrial — ancla de techos grandes..."
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Lugares útiles para ventas solares: playas, plazas, hospitales, corredores comerciales e industriales.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <Zap className="h-4 w-4 text-amber-500" />
+                        Oportunidad solar
+                      </label>
+                      <textarea
+                        value={solarOpportunity}
+                        onChange={(e) => setSolarOpportunity(e.target.value)}
+                        rows={3}
+                        className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-transparent focus:ring-2 focus:ring-primary-500"
+                        placeholder="Por qué este municipio es una oportunidad de mercado solar..."
                       />
                     </div>
 

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Map, Building2, Layers3, Flame, Globe, BarChart3, Search, Brain, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Map, Building2, Layers3, Flame, Globe, BarChart3, Search, Brain, ArrowRight, CheckCircle2, Trophy } from "lucide-react";
 import Layout from "../components/Layout";
 import MunicipalityAnalytics from "../components/MunicipalityAnalytics";
 
@@ -63,6 +63,13 @@ const LandingPage = () => {
                 >
                   <Flame className="w-4 h-4" />
                   Calor
+                </Link>
+                <Link
+                  to="/oportunidad"
+                  className="px-4 py-2 bg-orange-50 text-orange-700 rounded-lg font-medium text-sm shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2"
+                >
+                  <Trophy className="w-4 h-4" />
+                  Oportunidad
                 </Link>
                 <Link
                   to="/3d"

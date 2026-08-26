@@ -5,9 +5,33 @@
  */
 
 import clientPromise from '../lib/mongodb';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { getSessionFromRequest } = require('../lib/adminAuth');
 
 const DB_NAME = 'powersolarpr';
 const COLLECTION_NAME = 'municipalities';
+
+function namesMatch(left, right) {
+  return left.localeCompare(right, 'es', { sensitivity: 'base' }) === 0;
+}
+
+function serializeMunicipality(municipality) {
+  if (!municipality) return municipality;
+  return {
+    ...municipality,
+    _id: municipality._id ? String(municipality._id) : undefined,
+  };
+}
+
+async function findMunicipality(collection, name) {
+  const exact = await collection.findOne({ name });
+  if (exact) return exact;
+
+  const municipalities = await collection.find({}).toArray();
+  return municipalities.find((item) => item.name && namesMatch(item.name, name));
+}
 
 export default async function handler(req, res) {
   try {
@@ -19,17 +43,21 @@ export default async function handler(req, res) {
 
     switch (req.method) {
       case 'GET':
-        const municipality = await collection.findOne({ name });
+        const municipality = await findMunicipality(collection, name);
         if (!municipality) {
           return res.status(404).json({ error: 'Municipality not found' });
         }
-        return res.status(200).json(municipality);
+        return res.status(200).json(serializeMunicipality(municipality));
 
       case 'DELETE':
-        const result = await collection.deleteOne({ name });
-        if (result.deletedCount === 0) {
+        if (!getSessionFromRequest(req)) {
+          return res.status(401).json({ error: 'Unauthorized' });
+        }
+        const existing = await findMunicipality(collection, name);
+        if (!existing) {
           return res.status(404).json({ error: 'Municipality not found' });
         }
+        await collection.deleteOne({ _id: existing._id });
         return res.status(200).json({ success: true, message: 'Municipality deleted' });
 
       default:

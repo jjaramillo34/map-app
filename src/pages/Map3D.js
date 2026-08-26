@@ -3,6 +3,7 @@ import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-load
 import geoJson from "../data/geojson.geojson";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import Layout from "../components/Layout";
+import { addMunicipalityBoundaryLayers, loadMunicipalityBoundaries } from "../utils/municipalityBoundaries";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -47,6 +48,18 @@ export default function Map3D() {
     map.current.addControl(new mapboxgl.FullscreenControl(), "top-right");
 
     map.current.on("load", function () {
+      loadMunicipalityBoundaries()
+        .then((boundaries) => {
+          if (!map.current) return;
+          addMunicipalityBoundaryLayers(map.current, {
+            data: boundaries,
+            theme: "dark",
+            interactive: true,
+            beforeId: map.current.getLayer("solar-clusters-3d") ? "solar-clusters-3d" : undefined,
+          });
+        })
+        .catch((error) => console.error("[Map3D] Error loading boundaries:", error));
+
       // Add 3D buildings
       const layers = map.current.getStyle().layers;
       const labelLayerId = layers.find(

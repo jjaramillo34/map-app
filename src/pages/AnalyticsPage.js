@@ -1,19 +1,32 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { 
   BarChart3, TrendingUp, DollarSign, MapPin, 
   Brain, Target, AlertCircle, PieChart, Activity,
   Zap, Globe, Layers3, Loader2,
-  Map as MapIcon, TreePine, Download, Search, X
+  Map as MapIcon, TreePine, Download, Search, X,
+  Trophy, Users, Lightbulb, ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import { 
   LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area,
+  ScatterChart, Scatter
 } from "recharts";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-loader-syntax
 import Layout from "../components/Layout";
 import geoJsonData from "../data/geojson.geojson";
+import { getAllMunicipalityData } from "../services/municipalityData";
+import {
+  buildExecutiveInsights,
+  buildSocioeconomicCharts,
+  calculateSocioeconomicCorrelations,
+  computeGapScores,
+  mergeMunicipalityProfiles,
+  municipioPath,
+  sortMunicipios,
+} from "../utils/analyticsInsights";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -23,7 +36,9 @@ const analyticsNavigation = [
     label: "Explorar datos",
     description: "Gráficos y distribución geográfica",
     tabs: [
+      { id: "ranking", label: "Oportunidades", icon: Trophy },
       { id: "charts", label: "Gráficos", icon: PieChart },
+      { id: "socioeconomics", label: "Socioeconomía", icon: Users },
       { id: "heatmap", label: "Heatmap", icon: MapIcon },
       { id: "correlations", label: "Correlaciones", icon: Activity },
       { id: "regional", label: "Análisis Regional", icon: Globe },
@@ -52,6 +67,76 @@ const analyticsNavigation = [
   },
 ];
 
+const municipioLinkClass =
+  "font-semibold text-primary-700 hover:text-primary-800 hover:underline";
+
+const LocalStory = ({ municipio, compact = false }) => {
+  if (!municipio?.solarOpportunity && !municipio?.pointsOfInterest?.length) {
+    return compact ? (
+      <span className="text-xs text-gray-400">Sin perfil de IA</span>
+    ) : null;
+  }
+
+  return (
+    <div className={compact ? "space-y-1" : "space-y-2"}>
+      {municipio.solarOpportunity ? (
+        <p className={`text-gray-700 ${compact ? "line-clamp-2 text-xs" : "line-clamp-3 text-sm"}`}>
+          {municipio.solarOpportunity}
+        </p>
+      ) : null}
+      {municipio.pointsOfInterest?.length > 0 ? (
+        <p className="flex items-start gap-1 text-xs text-gray-500">
+          <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+          <span>
+            {municipio.pointsOfInterest[0]}
+            {municipio.pointsOfInterest.length > 1
+              ? ` · +${municipio.pointsOfInterest.length - 1}`
+              : ""}
+          </span>
+        </p>
+      ) : null}
+    </div>
+  );
+};
+
+const RankSortHeader = ({ label, sortKey, rankSort, onSort, align = "right" }) => {
+  const active = rankSort.key === sortKey;
+  const Icon = !active ? ArrowUpDown : rankSort.dir === "asc" ? ArrowUp : ArrowDown;
+
+  return (
+    <th
+      className={`px-3 py-3 text-xs font-semibold uppercase tracking-wide ${
+        align === "left" ? "text-left" : "text-right"
+      }`}
+      aria-sort={active ? (rankSort.dir === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 ${
+          align === "right" ? "justify-end" : ""
+        } ${active ? "text-primary-700" : "text-gray-500 hover:text-gray-800"}`}
+      >
+        {label}
+        <Icon className="h-3.5 w-3.5" />
+      </button>
+    </th>
+  );
+};
+
+const SocioScatterTooltip = ({ active, payload }) => {
+  if (!active || !payload?.[0]) return null;
+  const point = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-lg">
+      <p className="font-semibold text-gray-900">{point.name}</p>
+      <p className="text-gray-600">{point.xLabel}: {point.x}%</p>
+      <p className="text-gray-600">Penetración: {point.y}%</p>
+      <p className="text-gray-600">Clientes: {point.customers?.toLocaleString?.() || point.customers}</p>
+    </div>
+  );
+};
+
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +146,7 @@ const AnalyticsPage = () => {
   const [selectedMetric, setSelectedMetric] = useState("customers");
   const [municipioQuery, setMunicipioQuery] = useState("");
   const [comparisonNames, setComparisonNames] = useState(["", ""]);
+  const [rankSort, setRankSort] = useState({ key: "gapScore", dir: "desc" });
   const heatmapMapContainer = useRef(null);
   const heatmapMap = useRef(null);
   const navigationRef = useRef(null);
@@ -75,9 +161,32 @@ const AnalyticsPage = () => {
       name.toLocaleLowerCase().includes(normalizedMunicipioQuery),
     [normalizedMunicipioQuery]
   );
-  const visibleHeatmapMunicipios = analytics?.municipios.filter((municipio) =>
-    isMunicipioVisible(municipio.name)
-  ) || [];
+  const visibleMunicipios = useMemo(
+    () =>
+      analytics?.municipios.filter((municipio) =>
+        isMunicipioVisible(municipio.name)
+      ) || [],
+    [analytics, isMunicipioVisible]
+  );
+  const visibleHeatmapMunicipios = visibleMunicipios;
+  const executiveInsights = useMemo(
+    () =>
+      analytics
+        ? buildExecutiveInsights(visibleMunicipios, analytics.socioCorrelations)
+        : { topGaps: [], topMature: [], takeaways: [] },
+    [analytics, visibleMunicipios]
+  );
+  const rankedMunicipios = useMemo(
+    () => sortMunicipios(visibleMunicipios, rankSort),
+    [visibleMunicipios, rankSort]
+  );
+  const toggleRankSort = (key) => {
+    setRankSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === "desc" ? "asc" : "desc" }
+        : { key, dir: key === "name" ? "asc" : "desc" }
+    );
+  };
   const heatmapMetricLabels = {
     customers: "Clientes solares",
     penetration: "Penetración",
@@ -130,6 +239,7 @@ const AnalyticsPage = () => {
   useEffect(() => {
     const analyzeData = async () => {
       try {
+        const profilesPromise = getAllMunicipalityData().catch(() => ({}));
         let dataToAnalyze = geoJsonData;
         
         // Handle URL string
@@ -257,41 +367,51 @@ const AnalyticsPage = () => {
           };
         });
 
+        const profiles = await profilesPromise;
+        const scoredMunicipios = mergeMunicipalityProfiles(
+          computeGapScores(municipios),
+          profiles
+        );
+        const socioCorrelations = calculateSocioeconomicCorrelations(scoredMunicipios);
+        const socioeconomicCharts = buildSocioeconomicCharts(scoredMunicipios);
+
         // ML Analysis: K-Means Clustering
-        const clusters = performKMeansClustering(municipios, 4);
+        const clusters = performKMeansClustering(scoredMunicipios, 4);
         
         // ML Analysis: Linear Regression for Prediction
-        const predictions = performLinearRegression(municipios);
+        const predictions = performLinearRegression(scoredMunicipios);
         
         // Correlation Analysis
-        const correlations = calculateCorrelations(municipios);
+        const correlations = calculateCorrelations(scoredMunicipios);
         
         // Anomaly Detection
-        const anomalies = detectAnomalies(municipios);
+        const anomalies = detectAnomalies(scoredMunicipios);
         
         // Market Segmentation
-        const segments = performMarketSegmentation(municipios);
+        const segments = performMarketSegmentation(scoredMunicipios);
 
         // Neural Network Predictions
-        const neuralPredictions = performNeuralNetworkPrediction(municipios);
+        const neuralPredictions = performNeuralNetworkPrediction(scoredMunicipios);
         
         // Decision Tree Classification
-        const decisionTree = performDecisionTreeClassification(municipios);
+        const decisionTree = performDecisionTreeClassification(scoredMunicipios);
         
         // Time Series Analysis (simulated with monthly projections)
-        const timeSeries = performTimeSeriesAnalysis(municipios);
+        const timeSeries = performTimeSeriesAnalysis(scoredMunicipios);
         
         // Regional Analysis (needed for charts)
-        const regionalAnalysis = performRegionalAnalysis(municipios);
+        const regionalAnalysis = performRegionalAnalysis(scoredMunicipios);
         
         // Chart Data
-        const chartData = prepareChartData(municipios, regionalAnalysis);
+        const chartData = prepareChartData(scoredMunicipios, regionalAnalysis);
 
         setAnalytics({
-          municipios,
+          municipios: scoredMunicipios,
           clusters,
           predictions,
           correlations,
+          socioCorrelations,
+          socioeconomicCharts,
           anomalies,
           regionalAnalysis,
           segments,
@@ -1209,6 +1329,25 @@ const AnalyticsPage = () => {
                 </button>
                 <button
                   type="button"
+                  id="analytics-tab-ranking"
+                  aria-controls="analytics-panel"
+                  onClick={() => {
+                    setActiveTab("ranking");
+                    setOpenMenu(null);
+                  }}
+                  role="tab"
+                  aria-selected={activeTab === "ranking"}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    activeTab === "ranking"
+                      ? "bg-primary-50 text-primary-700"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
+                >
+                  <Trophy className="h-4 w-4" />
+                  Oportunidades
+                </button>
+                <button
+                  type="button"
                   id="analytics-tab-compare"
                   aria-controls="analytics-panel"
                   onClick={() => {
@@ -1374,7 +1513,9 @@ const AnalyticsPage = () => {
                                 key={municipio.name}
                                 className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500"
                               >
-                                {municipio.name}
+                                <Link to={municipioPath(municipio.name)} className={municipioLinkClass}>
+                                  {municipio.name}
+                                </Link>
                               </th>
                             ))}
                           </tr>
@@ -1385,9 +1526,11 @@ const AnalyticsPage = () => {
                             ["Ingreso promedio", (municipio) => `$${municipio.avgIncome.toLocaleString()}`],
                             ["Población promedio", (municipio) => municipio.avgPopulation.toLocaleString()],
                             ["Penetración", (municipio) => `${municipio.penetrationRate}%`],
+                            ["Score de oportunidad", (municipio) => municipio.gapScore ?? "—"],
                             ["Pobreza", (municipio) => `${municipio.avgPoverty}%`],
                             ["Desempleo", (municipio) => `${municipio.avgUnemployment}%`],
                             ["Profesionales", (municipio) => `${municipio.avgProfessional}%`],
+                            ["Hispano", (municipio) => `${municipio.avgHispanic}%`],
                           ].map(([label, formatValue]) => (
                             <tr key={label}>
                               <th className="px-4 py-3 text-left font-medium text-gray-700">{label}</th>
@@ -1410,33 +1553,319 @@ const AnalyticsPage = () => {
                       </p>
                     </div>
                   )}
+
+                  {comparisonMunicipios.length === 2 && (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {comparisonMunicipios.map((municipio) => (
+                        <div
+                          key={`${municipio.name}-story`}
+                          className="rounded-xl border border-amber-100 bg-amber-50/70 p-4"
+                        >
+                          <p className="mb-2 text-sm font-semibold text-gray-900">
+                            Historia local · {municipio.name}
+                          </p>
+                          <LocalStory municipio={municipio} />
+                          {!municipio.solarOpportunity && !municipio.pointsOfInterest?.length ? (
+                            <p className="text-sm text-gray-500">
+                              Aún no hay oportunidad solar ni puntos de interés. Genéralos en el admin.
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Overview Tab */}
               {activeTab === "overview" && (
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Cola de ventas</h2>
+                    <p className="mt-2 text-gray-600">
+                      Dónde hay más ingreso y población con poca solar, y qué historia local usar en cada visita.
+                    </p>
+                  </div>
+
+                  {executiveInsights.takeaways.length > 0 && (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                      {executiveInsights.takeaways.map((takeaway) => (
+                        <div
+                          key={takeaway.title}
+                          className="rounded-xl border border-primary-100 bg-gradient-to-br from-primary-50 to-white p-5"
+                        >
+                          <div className="mb-2 flex items-center gap-2">
+                            <Lightbulb className="h-5 w-5 text-primary-600" />
+                            <h3 className="font-semibold text-gray-900">{takeaway.title}</h3>
+                          </div>
+                          <p className="text-sm leading-relaxed text-gray-700">{takeaway.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className="rounded-xl border border-amber-100 bg-white p-5">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Trophy className="h-5 w-5 text-amber-600" />
+                          <h3 className="text-lg font-bold text-gray-900">Top 5 brechas</h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("ranking")}
+                          className="text-sm font-semibold text-primary-700 hover:underline"
+                        >
+                          Ver ranking
+                        </button>
+                      </div>
+                      <ol className="space-y-3">
+                        {executiveInsights.topGaps.map((municipio, index) => (
+                          <li key={municipio.name} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-semibold text-gray-400">#{index + 1}</p>
+                                <Link to={municipioPath(municipio.name)} className={municipioLinkClass}>
+                                  {municipio.name}
+                                </Link>
+                                <p className="mt-1 text-xs text-gray-500">
+                                  {municipio.customers.toLocaleString()} clientes · {municipio.penetrationRate}% penetración · ${municipio.avgIncome.toLocaleString()}
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+                                {municipio.gapScore}
+                              </span>
+                            </div>
+                            <div className="mt-2">
+                              <LocalStory municipio={municipio} compact />
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    <div className="rounded-xl border border-green-100 bg-white p-5">
+                      <div className="mb-4 flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-green-600" />
+                        <h3 className="text-lg font-bold text-gray-900">Top 5 mercados maduros</h3>
+                      </div>
+                      <ol className="space-y-3">
+                        {executiveInsights.topMature.map((municipio, index) => (
+                          <li key={municipio.name} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-semibold text-gray-400">#{index + 1}</p>
+                                <Link to={municipioPath(municipio.name)} className={municipioLinkClass}>
+                                  {municipio.name}
+                                </Link>
+                                <p className="mt-1 text-xs text-gray-500">
+                                  {municipio.penetrationRate}% penetración · {municipio.customers.toLocaleString()} clientes
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-800">
+                                Maduro
+                              </span>
+                            </div>
+                            <div className="mt-2">
+                              <LocalStory municipio={municipio} compact />
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "ranking" && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Resumen Ejecutivo</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Distribución del Mercado</h3>
-                      <p className="text-gray-700 mb-2">
-                        <span className="font-bold">{analytics.summary.totalCustomers.toLocaleString()}</span> clientes solares distribuidos en{" "}
-                        <span className="font-bold">{analytics.summary.totalMunicipios}</span> municipios
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Penetración promedio: {analytics.summary.avgPenetration}%
-                      </p>
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <Trophy className="h-6 w-6 text-primary-600" />
+                      <h2 className="text-2xl font-bold text-gray-900">Ranking de oportunidad</h2>
                     </div>
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Potencial de Crecimiento</h3>
-                      <p className="text-gray-700 mb-2">
-                        <span className="font-bold">{analytics.predictions.length}</span> municipios identificados con alto potencial
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Basado en análisis predictivo de ML
-                      </p>
+                    <p className="mt-2 text-gray-600">
+                      Score 0–100: más ingreso y población, menos penetración solar. Ordena columnas y abre el municipio para el mapa y el perfil.
+                    </p>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <table className="w-full min-w-[860px] text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <RankSortHeader
+                            label="Municipio"
+                            sortKey="name"
+                            rankSort={rankSort}
+                            onSort={toggleRankSort}
+                            align="left"
+                          />
+                          <RankSortHeader
+                            label="Clientes"
+                            sortKey="customers"
+                            rankSort={rankSort}
+                            onSort={toggleRankSort}
+                          />
+                          <RankSortHeader
+                            label="Penetración"
+                            sortKey="penetrationRate"
+                            rankSort={rankSort}
+                            onSort={toggleRankSort}
+                          />
+                          <RankSortHeader
+                            label="Ingreso"
+                            sortKey="avgIncome"
+                            rankSort={rankSort}
+                            onSort={toggleRankSort}
+                          />
+                          <RankSortHeader
+                            label="Score"
+                            sortKey="gapScore"
+                            rankSort={rankSort}
+                            onSort={toggleRankSort}
+                          />
+                          <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Historia local
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {rankedMunicipios.map((municipio) => (
+                          <tr key={municipio.name} className="hover:bg-primary-50/40">
+                            <td className="px-3 py-3">
+                              <div className="flex flex-col">
+                                <Link to={municipioPath(municipio.name)} className={municipioLinkClass}>
+                                  {municipio.name}
+                                </Link>
+                                <Link
+                                  to={`/oportunidad?municipio=${encodeURIComponent(municipio.name)}`}
+                                  className="text-xs font-medium text-orange-700 hover:underline"
+                                >
+                                  Ver en mapa
+                                </Link>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 text-right font-medium text-gray-900">
+                              {municipio.customers.toLocaleString()}
+                            </td>
+                            <td className="px-3 py-3 text-right text-gray-700">
+                              {municipio.penetrationRate}%
+                            </td>
+                            <td className="px-3 py-3 text-right text-gray-700">
+                              ${municipio.avgIncome.toLocaleString()}
+                            </td>
+                            <td className="px-3 py-3 text-right">
+                              <span className="inline-flex min-w-[2.5rem] justify-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+                                {municipio.gapScore}
+                              </span>
+                            </td>
+                            <td className="max-w-xs px-3 py-3">
+                              <LocalStory municipio={municipio} compact />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {rankedMunicipios.length} municipios en la cola
+                    {normalizedMunicipioQuery ? ` · filtro “${municipioQuery}”` : ""}.
+                  </p>
+                </div>
+              )}
+
+              {activeTab === "socioeconomics" && analytics.socioeconomicCharts && (
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <Users className="h-6 w-6 text-primary-600" />
+                      <h2 className="text-2xl font-bold text-gray-900">Socioeconomía vs solar</h2>
                     </div>
+                    <p className="mt-2 text-gray-600">
+                      Pobreza, desempleo, profesionales y porcentaje hispano frente a la penetración solar. Sirve para entender por qué algunos municipios se quedan atrás.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {[
+                      {
+                        name: "Pobreza vs penetración",
+                        value: analytics.socioCorrelations?.povertyVsPenetration,
+                        hint: "Si es negativa, más pobreza suele ir con menos solar",
+                      },
+                      {
+                        name: "Desempleo vs penetración",
+                        value: analytics.socioCorrelations?.unemploymentVsPenetration,
+                        hint: "Mercado laboral y capacidad de pagar un sistema",
+                      },
+                      {
+                        name: "Profesionales vs penetración",
+                        value: analytics.socioCorrelations?.professionalVsPenetration,
+                        hint: "Ocupaciones profesionales y adopción",
+                      },
+                      {
+                        name: "Hispano vs penetración",
+                        value: analytics.socioCorrelations?.hispanicVsPenetration,
+                        hint: "En Puerto Rico esta variable suele variar poco",
+                      },
+                    ].map((item) => {
+                      const value = item.value || 0;
+                      const strength = Math.abs(value);
+                      const label = strength > 0.7 ? "Fuerte" : strength > 0.4 ? "Moderada" : "Débil";
+                      return (
+                        <div key={item.name} className="rounded-xl border border-gray-200 bg-white p-4">
+                          <h3 className="text-sm font-semibold text-gray-900">{item.name}</h3>
+                          <p className="mt-2 text-2xl font-bold text-gray-900">
+                            {value > 0 ? "+" : ""}
+                            {value.toFixed(2)}
+                          </p>
+                          <p className="mt-1 text-xs font-semibold text-gray-500">{label}</p>
+                          <p className="mt-2 text-xs text-gray-500">{item.hint}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    {[
+                      { key: "poverty", title: "Pobreza", xLabel: "Pobreza", color: "#ef4444" },
+                      { key: "unemployment", title: "Desempleo", xLabel: "Desempleo", color: "#f59e0b" },
+                      { key: "professional", title: "Profesionales", xLabel: "Profesionales", color: "#3b82f6" },
+                      { key: "hispanic", title: "Población hispana", xLabel: "Hispano", color: "#8b5cf6" },
+                    ].map((chart) => (
+                      <div key={chart.key} className="rounded-xl border border-gray-100 bg-white p-4">
+                        <h3 className="mb-4 text-lg font-semibold text-gray-900">
+                          {chart.title} vs penetración solar
+                        </h3>
+                        <ResponsiveContainer width="100%" height={280}>
+                          <ScatterChart margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              dataKey="x"
+                              name={chart.xLabel}
+                              unit="%"
+                              tick={{ fontSize: 12 }}
+                            />
+                            <YAxis
+                              dataKey="y"
+                              name="Penetración"
+                              unit="%"
+                              tick={{ fontSize: 12 }}
+                            />
+                            <Tooltip content={<SocioScatterTooltip />} />
+                            <Scatter
+                              data={(analytics.socioeconomicCharts[chart.key] || [])
+                                .filter((point) => isMunicipioVisible(point.name))
+                                .map((point) => ({
+                                  ...point,
+                                  xLabel: chart.xLabel,
+                                }))}
+                              fill={chart.color}
+                            />
+                          </ScatterChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

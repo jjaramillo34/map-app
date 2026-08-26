@@ -1,38 +1,32 @@
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { getAdminSession } from "../services/adminAuth";
 
-/**
- * Protected route component for admin pages
- * Checks if user is authenticated before rendering children
- */
 const AdminProtectedRoute = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // Check authentication
-    const checkAuth = () => {
-      const authenticated = sessionStorage.getItem("admin_authenticated") === "true";
-      const loginTime = parseInt(sessionStorage.getItem("admin_login_time") || "0");
-      const now = Date.now();
-      
-      // Session expires after 8 hours
-      const SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours
-      
-      if (authenticated && (now - loginTime) < SESSION_DURATION) {
-        setIsAuthenticated(true);
-      } else {
-        // Clear expired session
-        sessionStorage.removeItem("admin_authenticated");
-        sessionStorage.removeItem("admin_login_time");
-        setIsAuthenticated(false);
+    let cancelled = false;
+
+    const checkAuth = async () => {
+      try {
+        const session = await getAdminSession();
+        if (!cancelled) {
+          setIsAuthenticated(Boolean(session?.authenticated));
+        }
+      } catch {
+        if (!cancelled) setIsAuthenticated(false);
+      } finally {
+        if (!cancelled) setIsChecking(false);
       }
-      
-      setIsChecking(false);
     };
 
     checkAuth();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (isChecking) {
@@ -54,4 +48,3 @@ const AdminProtectedRoute = ({ children }) => {
 };
 
 export default AdminProtectedRoute;
-

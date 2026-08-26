@@ -6,6 +6,10 @@
  */
 
 import clientPromise from '../lib/mongodb';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { getSessionFromRequest } = require('../lib/adminAuth');
 
 const DB_NAME = 'powersolarpr';
 const COLLECTION_NAME = 'municipalities';
@@ -20,8 +24,14 @@ export default async function handler(req, res) {
       case 'GET':
         return handleGet(req, res, collection);
       case 'POST':
+        if (!getSessionFromRequest(req)) {
+          return res.status(401).json({ error: 'Unauthorized' });
+        }
         return handlePost(req, res, collection);
       case 'DELETE':
+        if (!getSessionFromRequest(req)) {
+          return res.status(401).json({ error: 'Unauthorized' });
+        }
         return handleDelete(req, res, collection);
       default:
         res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
@@ -33,25 +43,43 @@ export default async function handler(req, res) {
   }
 }
 
+function namesMatch(left, right) {
+  return left.localeCompare(right, 'es', { sensitivity: 'base' }) === 0;
+}
+
+function serializeMunicipality(municipality) {
+  if (!municipality) return municipality;
+  return {
+    ...municipality,
+    _id: municipality._id ? String(municipality._id) : undefined,
+  };
+}
+
+async function findMunicipality(collection, name) {
+  const exact = await collection.findOne({ name });
+  if (exact) return exact;
+
+  const municipalities = await collection.find({}).toArray();
+  return municipalities.find((item) => item.name && namesMatch(item.name, name));
+}
+
 async function handleGet(req, res, collection) {
   const { name } = req.query;
 
   if (name) {
-    // Get specific municipality
-    const municipality = await collection.findOne({ name: decodeURIComponent(name) });
+    const municipality = await findMunicipality(collection, decodeURIComponent(name));
     if (!municipality) {
       return res.status(404).json({ error: 'Municipality not found' });
     }
-    return res.status(200).json(municipality);
-  } else {
-    // Get all municipalities
-    const municipalities = await collection.find({}).toArray();
-    const result = {};
-    municipalities.forEach(m => {
-      result[m.name] = m;
-    });
-    return res.status(200).json(result);
+    return res.status(200).json(serializeMunicipality(municipality));
   }
+
+  const municipalities = await collection.find({}).toArray();
+  const result = {};
+  municipalities.forEach((municipality) => {
+    result[municipality.name] = serializeMunicipality(municipality);
+  });
+  return res.status(200).json(result);
 }
 
 async function handlePost(req, res, collection) {
@@ -88,12 +116,12 @@ async function handleDelete(req, res, collection) {
     return res.status(400).json({ error: 'Municipality name is required' });
   }
 
-  const result = await collection.deleteOne({ name: decodeURIComponent(name) });
-
-  if (result.deletedCount === 0) {
+  const existing = await findMunicipality(collection, decodeURIComponent(name));
+  if (!existing) {
     return res.status(404).json({ error: 'Municipality not found' });
   }
 
+  await collection.deleteOne({ _id: existing._id });
   return res.status(200).json({ success: true, message: 'Municipality deleted' });
 }
 

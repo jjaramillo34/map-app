@@ -1,36 +1,29 @@
 /**
- * Script to generate password hash for admin panel
- * 
+ * Generate a SHA-256 password hash for admin login.
+ *
  * Usage:
  *   node generate-password-hash.js "your-password"
- * 
- * This script generates a SHA-256 hash of your password for use in
- * REACT_APP_ADMIN_PASSWORD_HASH environment variable.
- * 
- * Security: This script does NOT store or transmit your password.
- * It only generates a hash locally on your machine.
+ *
+ * Then put the hash in .env / Vercel as ADMIN_PASSWORD_HASH.
+ * Also set ADMIN_USERNAME and ADMIN_SESSION_SECRET on the server.
  */
 
-const crypto = require('crypto');
+const crypto = require("crypto");
 
-// Get password from command line argument
 const password = process.argv[2];
 
 if (!password) {
-  console.error('\n❌ Error: Password required\n');
+  console.error("\nError: Password required\n");
   console.log('Usage: node generate-password-hash.js "your-password"\n');
-  console.log('Example: node generate-password-hash.js "mySecurePassword123"\n');
   process.exit(1);
 }
 
-// Generate SHA-256 hash
-const hash = crypto.createHash('sha256').update(password).digest('hex');
+const hash = crypto.createHash("sha256").update(password).digest("hex");
+const sessionSecret = crypto.randomBytes(32).toString("hex");
 
-console.log('\n🔐 Password Hash Generator\n');
-console.log('Password:', password);
-console.log('Hash:', hash);
-console.log('\n📋 Add this to your .env file:');
-console.log(`REACT_APP_ADMIN_PASSWORD_HASH=${hash}\n`);
-console.log('Or add it to Vercel environment variables:\n');
-console.log(`REACT_APP_ADMIN_PASSWORD_HASH = ${hash}\n`);
-
+console.log("\nAdmin credentials\n");
+console.log("Hash:", hash);
+console.log("\nAdd these server environment variables:");
+console.log("ADMIN_USERNAME=your-username");
+console.log(`ADMIN_PASSWORD_HASH=${hash}`);
+console.log(`ADMIN_SESSION_SECRET=${sessionSecret}\n`);

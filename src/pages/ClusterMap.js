@@ -3,6 +3,7 @@ import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-load
 import geoJson from "../data/geojson.geojson";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import Layout from "../components/Layout";
+import { addMunicipalityBoundaryLayers, loadMunicipalityBoundaries } from "../utils/municipalityBoundaries";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -44,6 +45,18 @@ export default function ClusterMap() {
     map.current.addControl(new mapboxgl.FullscreenControl(), "top-right");
 
     map.current.on("load", function () {
+      loadMunicipalityBoundaries()
+        .then((boundaries) => {
+          if (!map.current) return;
+          addMunicipalityBoundaryLayers(map.current, {
+            data: boundaries,
+            theme: "dark",
+            interactive: true,
+            beforeId: map.current.getLayer("clusters") ? "clusters" : undefined,
+          });
+        })
+        .catch((error) => console.error("[ClusterMap] Error loading boundaries:", error));
+
       // Add clustered source
       map.current.addSource("solar-clusters", {
         type: "geojson",

@@ -6,6 +6,7 @@ import Municipios from "./pages/Municipios";
 import ClusterMap from "./pages/ClusterMap";
 import HeatMap from "./pages/HeatMap";
 import Map3D from "./pages/Map3D";
+import OpportunityMap from "./pages/OpportunityMap";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import Privacidad from "./pages/Privacidad";
 import Terminos from "./pages/Terminos";
@@ -24,6 +25,7 @@ const AppRouter = () => {
         <Route path="/cluster" element={<ClusterMap />} />
         <Route path="/heatmap" element={<HeatMap />} />
         <Route path="/3d" element={<Map3D />} />
+        <Route path="/oportunidad" element={<OpportunityMap />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/privacidad" element={<Privacidad />} />
         <Route path="/terminos" element={<Terminos />} />

@@ -4,6 +4,13 @@ import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-load
 import geoJson from "../data/geojson.geojson";
 import Layout from "../components/Layout";
 import {
+  addMunicipalityBoundaryLayers,
+  findMunicipalityFeature,
+  fitMapToMunicipality,
+  highlightMunicipality,
+  loadMunicipalityBoundaries,
+} from "../utils/municipalityBoundaries";
+import {
   MapPin,
   Users,
   DollarSign,
@@ -18,34 +25,60 @@ import {
   Home,
   FileText,
   Sparkles,
-  Tag,
   CheckCircle2,
   Lightbulb,
   BookOpen,
+  Calendar,
 } from "lucide-react";
 import { getMunicipalityData } from "../services/municipalityData";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
+const formatUpdatedAt = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("es-PR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+const descriptionParagraphs = (description) =>
+  description
+    .split(/\n+/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
 const MunicipioDetail = () => {
   const { municipioName } = useParams();
-  const mapContainer = useRef(null);
   const map = useRef(null);
+  const [mapNode, setMapNode] = useState(null);
   const [municipioData, setMunicipioData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
   const [extraData, setExtraData] = useState(null);
   const [mapStatus, setMapStatus] = useState("loading");
+  const [boundaries, setBoundaries] = useState(null);
 
   // Decode municipality name from URL
   const decodedName = municipioName ? decodeURIComponent(municipioName) : "";
+
+  useEffect(() => {
+    loadMunicipalityBoundaries()
+      .then(setBoundaries)
+      .catch((error) => console.error("[MunicipioDetail] Error loading boundaries:", error));
+  }, []);
 
   // Load geojson data
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
+        setExtraData(null);
+        setMapStatus("loading");
         let dataToLoad = geoJson;
         
         // If it's a URL string, fetch it
@@ -184,27 +217,28 @@ const MunicipioDetail = () => {
 
     setMunicipioData(municipioInfo);
     setStats(municipioInfo);
-    
-    // Load extra data (descriptions, etc.) from MongoDB
+    setExtraData(null);
+    setLoading(false);
+
+    // Load extra data (descriptions, etc.) from MongoDB without blocking the map.
     getMunicipalityData(municipioName)
       .then((extra) => {
         setExtraData(extra);
-        setLoading(false);
       })
       .catch((error) => {
         console.error('Error loading municipality extra data:', error);
         setExtraData(null);
-        setLoading(false);
       });
   };
 
-  // Initialize map
+  // Initialize map once the detail view (and map container) are in the DOM.
   useEffect(() => {
-    if (!mapContainer.current || !municipioData || map.current) return;
+    if (!mapNode || !municipioData) return;
 
     setMapStatus("loading");
     let mapLoaded = false;
     let mapLoadTimeout;
+    let mapInstance;
 
     try {
       if (!mapboxgl.accessToken) {
@@ -212,18 +246,19 @@ const MunicipioDetail = () => {
         return undefined;
       }
 
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
+      mapInstance = new mapboxgl.Map({
+        container: mapNode,
         style: "mapbox://styles/mapbox/light-v10",
         center: [municipioData.center.lng, municipioData.center.lat],
         zoom: 12,
         bearing: 0,
         pitch: 0,
       });
+      map.current = mapInstance;
 
-      map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
-      map.current.addControl(new mapboxgl.FullscreenControl(), "top-right");
-      map.current.addControl(
+      mapInstance.addControl(new mapboxgl.NavigationControl(), "top-right");
+      mapInstance.addControl(new mapboxgl.FullscreenControl(), "top-right");
+      mapInstance.addControl(
         new mapboxgl.GeolocateControl({
           positionOptions: {
             enableHighAccuracy: true,
@@ -234,121 +269,138 @@ const MunicipioDetail = () => {
         "top-right"
       );
 
-      map.current.on("load", () => {
+      mapInstance.on("load", () => {
         try {
-          if (!municipioData.features) return;
+          mapInstance.resize();
 
-          const filteredGeoJson = {
-            type: "FeatureCollection",
-            features: municipioData.features,
-          };
-
-          map.current.addSource("municipio-data", {
-            type: "geojson",
-            data: filteredGeoJson,
-            cluster: true,
-            clusterMaxZoom: 14,
-            clusterRadius: 50,
-          });
-
-          map.current.addLayer({
-            id: "municipio-clusters",
-            type: "circle",
-            source: "municipio-data",
-            filter: ["has", "point_count"],
-            paint: {
-              "circle-color": [
-                "step",
-                ["get", "point_count"],
-                "#51bbd6",
-                100,
-                "#1F4298",
-                750,
-                "#FF6800",
-              ],
-              "circle-radius": [
-                "step",
-                ["get", "point_count"],
-                20,
-                100,
-                30,
-                750,
-                40,
-              ],
-            },
-          });
-
-          map.current.addLayer({
-            id: "municipio-cluster-count",
-            type: "symbol",
-            source: "municipio-data",
-            filter: ["has", "point_count"],
-            layout: {
-              "text-field": "{point_count_abbreviated}",
-              "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
-              "text-size": 12,
-            },
-          });
-
-          map.current.addLayer({
-            id: "municipio-points",
-            type: "circle",
-            source: "municipio-data",
-            filter: ["!", ["has", "point_count"]],
-            paint: {
-              "circle-color": "#FF6800",
-              "circle-radius": 6,
-              "circle-stroke-width": 1,
-              "circle-stroke-color": "#fff",
-            },
-          });
-
-          map.current.on("click", "municipio-clusters", (e) => {
-            const features = map.current.queryRenderedFeatures(e.point, {
-              layers: ["municipio-clusters"],
+          const selectedFeature = findMunicipalityFeature(boundaries, municipioData.name);
+          const officialName = selectedFeature?.properties?.NAME;
+          if (boundaries?.features?.length) {
+            addMunicipalityBoundaryLayers(mapInstance, {
+              data: boundaries,
+              theme: "light",
+              interactive: false,
+              selectedName: officialName,
             });
-            const clusterId = features[0].properties.cluster_id;
-            const source = map.current.getSource("municipio-data");
+            if (officialName) {
+              highlightMunicipality(mapInstance, officialName);
+              fitMapToMunicipality(mapInstance, boundaries, officialName);
+            }
+          }
 
-            source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-              if (err) return;
+          if (municipioData.features?.length) {
+            const filteredGeoJson = {
+              type: "FeatureCollection",
+              features: municipioData.features,
+            };
 
-              map.current.easeTo({
-                center: features[0].geometry.coordinates,
-                zoom,
+            mapInstance.addSource("municipio-data", {
+              type: "geojson",
+              data: filteredGeoJson,
+              cluster: true,
+              clusterMaxZoom: 14,
+              clusterRadius: 50,
+            });
+
+            mapInstance.addLayer({
+              id: "municipio-clusters",
+              type: "circle",
+              source: "municipio-data",
+              filter: ["has", "point_count"],
+              paint: {
+                "circle-color": [
+                  "step",
+                  ["get", "point_count"],
+                  "#51bbd6",
+                  100,
+                  "#1F4298",
+                  750,
+                  "#FF6800",
+                ],
+                "circle-radius": [
+                  "step",
+                  ["get", "point_count"],
+                  20,
+                  100,
+                  30,
+                  750,
+                  40,
+                ],
+              },
+            });
+
+            mapInstance.addLayer({
+              id: "municipio-cluster-count",
+              type: "symbol",
+              source: "municipio-data",
+              filter: ["has", "point_count"],
+              layout: {
+                "text-field": "{point_count_abbreviated}",
+                "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+                "text-size": 12,
+              },
+            });
+
+            mapInstance.addLayer({
+              id: "municipio-points",
+              type: "circle",
+              source: "municipio-data",
+              filter: ["!", ["has", "point_count"]],
+              paint: {
+                "circle-color": "#FF6800",
+                "circle-radius": 6,
+                "circle-stroke-width": 1,
+                "circle-stroke-color": "#fff",
+              },
+            });
+
+            mapInstance.on("click", "municipio-clusters", (e) => {
+              const features = mapInstance.queryRenderedFeatures(e.point, {
+                layers: ["municipio-clusters"],
+              });
+              const clusterId = features[0].properties.cluster_id;
+              const source = mapInstance.getSource("municipio-data");
+
+              source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+                if (err) return;
+
+                mapInstance.easeTo({
+                  center: features[0].geometry.coordinates,
+                  zoom,
+                });
               });
             });
-          });
 
-          map.current.on("click", "municipio-points", (e) => {
-            const props = e.features[0].properties;
-            new mapboxgl.Popup()
-              .setLngLat(e.lngLat)
-              .setHTML(`
-                <div class="p-3">
-                  <h3 class="font-bold text-lg mb-2">${municipioData.name}</h3>
-                  <div class="space-y-1 text-sm">
-                    ${props.Income ? `<p><strong>Ingreso:</strong> $${parseInt(props.Income).toLocaleString()}</p>` : ""}
-                    ${props.TotalPop ? `<p><strong>Población:</strong> ${parseInt(props.TotalPop).toLocaleString()}</p>` : ""}
-                    ${props.City ? `<p><strong>Ciudad:</strong> ${props.City}</p>` : ""}
+            mapInstance.on("click", "municipio-points", (e) => {
+              const props = e.features[0].properties;
+              new mapboxgl.Popup()
+                .setLngLat(e.lngLat)
+                .setHTML(`
+                  <div class="p-3">
+                    <h3 class="font-bold text-lg mb-2">${municipioData.name}</h3>
+                    <div class="space-y-1 text-sm">
+                      ${props.Income ? `<p><strong>Ingreso:</strong> $${parseInt(props.Income).toLocaleString()}</p>` : ""}
+                      ${props.TotalPop ? `<p><strong>Población:</strong> ${parseInt(props.TotalPop).toLocaleString()}</p>` : ""}
+                      ${props.City ? `<p><strong>Ciudad:</strong> ${props.City}</p>` : ""}
+                    </div>
                   </div>
-                </div>
-              `)
-              .addTo(map.current);
-          });
+                `)
+                .addTo(mapInstance);
+            });
 
-          map.current.on("mouseenter", "municipio-clusters", () => {
-            map.current.getCanvas().style.cursor = "pointer";
-          });
-          map.current.on("mouseleave", "municipio-clusters", () => {
-            map.current.getCanvas().style.cursor = "";
-          });
-          map.current.on("mouseenter", "municipio-points", () => {
-            map.current.getCanvas().style.cursor = "pointer";
-          });
-          map.current.on("mouseleave", "municipio-points", () => {
-            map.current.getCanvas().style.cursor = "";
-          });
+            mapInstance.on("mouseenter", "municipio-clusters", () => {
+              mapInstance.getCanvas().style.cursor = "pointer";
+            });
+            mapInstance.on("mouseleave", "municipio-clusters", () => {
+              mapInstance.getCanvas().style.cursor = "";
+            });
+            mapInstance.on("mouseenter", "municipio-points", () => {
+              mapInstance.getCanvas().style.cursor = "pointer";
+            });
+            mapInstance.on("mouseleave", "municipio-points", () => {
+              mapInstance.getCanvas().style.cursor = "";
+            });
+          }
 
           mapLoaded = true;
           window.clearTimeout(mapLoadTimeout);
@@ -359,8 +411,15 @@ const MunicipioDetail = () => {
         }
       });
 
-      map.current.on("error", () => {
-        if (!mapLoaded) {
+      mapInstance.on("error", (event) => {
+        const message = event?.error?.message || "";
+        console.error("[MunicipioDetail] Mapbox error:", message || event);
+        // Tile/source 404s are recoverable; only fail the overlay for auth/style issues.
+        const isFatal =
+          /access token/i.test(message) ||
+          /unauthorized/i.test(message) ||
+          /style/i.test(message);
+        if (!mapLoaded && isFatal) {
           window.clearTimeout(mapLoadTimeout);
           setMapStatus("error");
         }
@@ -378,12 +437,14 @@ const MunicipioDetail = () => {
 
     return () => {
       window.clearTimeout(mapLoadTimeout);
-      if (map.current) {
-        map.current.remove();
+      if (mapInstance) {
+        mapInstance.remove();
+      }
+      if (map.current === mapInstance) {
         map.current = null;
       }
     };
-  }, [municipioData]);
+  }, [mapNode, municipioData, boundaries]);
 
   if (loading) {
     return (
@@ -443,7 +504,22 @@ const MunicipioDetail = () => {
               </Link>
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold mb-2">{municipioData.name}</h1>
-                <p className="text-primary-100">Datos detallados de energía solar</p>
+                <p className="text-primary-100">
+                  Datos detallados de energía solar
+                  {extraData?.censusYear ? ` · Censo ${extraData.censusYear}` : ""}
+                </p>
+                {extraData?.tags?.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {extraData.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold tracking-wide"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -512,116 +588,132 @@ const MunicipioDetail = () => {
             </div>
           </div>
 
-          {/* Description Section */}
-          {extraData && (extraData.description || extraData.tags || extraData.highlights || extraData.funFact || extraData.sources || extraData.censusYear) && (
+          {/* Profile from MongoDB: description, highlights, fun fact, sources */}
+          {extraData && (extraData.description || extraData.tags || extraData.highlights || extraData.funFact || extraData.pointsOfInterest || extraData.solarOpportunity || extraData.sources || extraData.censusYear) && (
             <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-gray-100 mb-8 overflow-hidden relative">
-              {/* Decorative gradient background */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary-50/50 to-transparent rounded-full blur-3xl -mr-32 -mt-32"></div>
-              
+
               {extraData.description && (
                 <div className="mb-8 relative z-10">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl shadow-md">
-                      <FileText className="w-6 h-6 text-white" />
+                  <div className="flex flex-col gap-3 mb-6 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl shadow-md">
+                        <FileText className="w-6 h-6 text-white" />
+                      </div>
+                      <h2 className="text-3xl font-bold text-gray-900">Sobre {municipioData.name}</h2>
                     </div>
-                    <h2 className="text-3xl font-bold text-gray-900">Sobre {municipioData.name}</h2>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-gray-700 leading-relaxed text-base md:text-lg mb-0 text-left">
-                      {extraData.description.split('\n').map((paragraph, index) => (
-                        <span key={index} className="block">
-                          {paragraph}
-                          {index < extraData.description.split('\n').length - 1 && <><br /></>}
+                    <div className="flex flex-wrap gap-2 text-xs font-semibold text-gray-500">
+                      {extraData.censusYear && (
+                        <span className="rounded-full bg-primary-50 px-3 py-1 text-primary-700">
+                          Censo {extraData.censusYear}
                         </span>
-                      ))}
-                    </p>
+                      )}
+                      {formatUpdatedAt(extraData.updatedAt) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-3 py-1">
+                          <Calendar className="h-3.5 w-3.5" />
+                          Actualizado {formatUpdatedAt(extraData.updatedAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-4 text-left">
+                    {descriptionParagraphs(extraData.description).map((paragraph, index) => (
+                      <p key={index} className="text-gray-700 leading-relaxed text-base md:text-lg">
+                        {paragraph}
+                      </p>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* Divider */}
-              {(extraData.description && (extraData.tags || extraData.highlights || extraData.funFact)) && (
+              {(extraData.description && (extraData.highlights || extraData.funFact || extraData.pointsOfInterest || extraData.solarOpportunity)) && (
                 <div className="border-t border-gray-200 my-8"></div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
-                {/* Tags Section */}
-                {extraData.tags && extraData.tags.length > 0 && (
-                  <div className="text-left">
-                    <div className="flex items-center gap-2.5 mb-4">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <Tag className="w-5 h-5 text-purple-600" />
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-900">Tags</h3>
+              {extraData.highlights && extraData.highlights.length > 0 && (
+                <div className="relative z-10 mb-8 text-left">
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <Sparkles className="w-5 h-5 text-yellow-600" />
                     </div>
-                    <div className="flex flex-wrap gap-2.5">
-                      {extraData.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-full text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+                    <h3 className="text-xl font-bold text-gray-900">Puntos Destacados</h3>
                   </div>
-                )}
-
-                {/* Highlights Section */}
-                {extraData.highlights && extraData.highlights.length > 0 && (
-                  <div className="text-left">
-                    <div className="flex items-center gap-2.5 mb-4">
-                      <div className="p-2 bg-yellow-100 rounded-lg">
-                        <Sparkles className="w-5 h-5 text-yellow-600" />
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-900">Puntos Destacados</h3>
-                    </div>
-                    <ul className="space-y-3">
-                      {extraData.highlights.map((highlight, index) => (
-                        <li key={index} className="flex items-start gap-3 group">
-                          <div className="mt-0.5 p-1 bg-green-100 rounded-full group-hover:bg-green-200 transition-colors">
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          </div>
-                          <span className="text-gray-700 leading-relaxed flex-1">{highlight}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              {/* Fun Fact Section */}
-              {extraData.funFact && (
-                <>
-                  {(extraData.tags || extraData.highlights) && (
-                    <div className="border-t border-gray-200 my-8"></div>
-                  )}
-                  <div className="relative z-10 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 md:p-8 border-2 border-blue-200/50 shadow-lg">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200/30 to-transparent rounded-full blur-2xl -mr-16 -mt-16"></div>
-                    <div className="relative flex items-start gap-4">
-                      <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg flex-shrink-0">
-                        <Lightbulb className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <h4 className="font-bold text-gray-900 text-lg mb-2 flex items-center gap-2">
-                          <Zap className="w-5 h-5 text-yellow-500" />
-                          Dato Curioso
-                        </h4>
-                        <p className="text-gray-800 leading-relaxed text-base md:text-lg font-medium text-left">
-                          {extraData.funFact}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </>
+                  <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {extraData.highlights.map((highlight, index) => (
+                      <li key={index} className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/80 p-4">
+                        <div className="mt-0.5 p-1 bg-green-100 rounded-full">
+                          <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        </div>
+                        <span className="text-gray-700 leading-relaxed flex-1">{highlight}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
 
-              {/* Sources Section */}
-              {(extraData.sources && extraData.sources.length > 0) || extraData.censusYear ? (
+              {extraData.funFact && (
+                <div className="relative z-10 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 md:p-8 border-2 border-blue-200/50 shadow-lg">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200/30 to-transparent rounded-full blur-2xl -mr-16 -mt-16"></div>
+                  <div className="relative flex items-start gap-4">
+                    <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg flex-shrink-0">
+                      <Lightbulb className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <h4 className="font-bold text-gray-900 text-lg mb-2 flex items-center gap-2">
+                        <Zap className="w-5 h-5 text-yellow-500" />
+                        Dato Curioso
+                      </h4>
+                      <p className="text-gray-800 leading-relaxed text-base md:text-lg font-medium">
+                        {extraData.funFact}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {extraData.pointsOfInterest?.length > 0 && (
+                <div className="relative z-10 mb-8 mt-8 text-left">
+                  <div className="mb-4 flex items-center gap-2.5">
+                    <div className="rounded-lg bg-rose-100 p-2">
+                      <MapPin className="h-5 w-5 text-rose-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900">Puntos de interés</h3>
+                  </div>
+                  <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {extraData.pointsOfInterest.map((place, index) => (
+                      <li
+                        key={`${place}-${index}`}
+                        className="flex items-start gap-3 rounded-xl border border-rose-100 bg-rose-50/70 p-4"
+                      >
+                        <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-rose-500" />
+                        <span className="flex-1 leading-relaxed text-gray-700">{place}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {extraData.solarOpportunity && (
+                <div className="relative z-10 mt-8 overflow-hidden rounded-2xl border-2 border-amber-200/70 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-6 shadow-lg md:p-8">
+                  <div className="relative flex items-start gap-4 text-left">
+                    <div className="flex-shrink-0 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 p-3 shadow-lg">
+                      <Zap className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="mb-2 text-lg font-bold text-gray-900">
+                        Oportunidad solar
+                      </h4>
+                      <p className="text-base font-medium leading-relaxed text-gray-800 md:text-lg">
+                        {extraData.solarOpportunity}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(extraData.sources?.length > 0 || extraData.censusYear) && (
                 <>
-                  {(extraData.description || extraData.tags || extraData.highlights || extraData.funFact) && (
-                    <div className="border-t border-gray-200 my-8"></div>
-                  )}
+                  <div className="border-t border-gray-200 my-8"></div>
                   <div className="relative z-10 text-left">
                     <div className="flex items-center gap-2.5 mb-4">
                       <div className="p-2 bg-gray-100 rounded-lg">
@@ -630,18 +722,16 @@ const MunicipioDetail = () => {
                       <h3 className="text-xl font-bold text-gray-900">Fuentes</h3>
                     </div>
                     {extraData.censusYear && (
-                      <div className="mb-4">
-                        <p className="text-sm text-gray-600 mb-2">
-                          <span className="font-semibold">Año del Censo:</span> {extraData.censusYear}
-                        </p>
-                      </div>
+                      <p className="text-sm text-gray-600 mb-3">
+                        <span className="font-semibold">Año del Censo:</span> {extraData.censusYear}
+                      </p>
                     )}
-                    {extraData.sources && extraData.sources.length > 0 && (
+                    {extraData.sources?.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {extraData.sources.map((source, index) => (
                           <span
                             key={index}
-                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-200 transition-colors"
+                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium border border-gray-200"
                           >
                             {source}
                           </span>
@@ -650,7 +740,7 @@ const MunicipioDetail = () => {
                     )}
                   </div>
                 </>
-              ) : null}
+              )}
             </div>
           )}
 
@@ -712,7 +802,7 @@ const MunicipioDetail = () => {
             </div>
             <div className="relative h-[420px] w-full bg-gray-100 md:h-[560px]">
               <div
-                ref={mapContainer}
+                ref={setMapNode}
                 aria-label={`Mapa de clientes solares en ${municipioData.name}`}
                 className="absolute left-0 top-0 h-full w-full"
               />

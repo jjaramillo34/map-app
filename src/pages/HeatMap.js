@@ -3,6 +3,7 @@ import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-load
 import geoJson from "../data/geojson.geojson";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import Layout from "../components/Layout";
+import { addMunicipalityBoundaryLayers, loadMunicipalityBoundaries } from "../utils/municipalityBoundaries";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -44,6 +45,18 @@ export default function HeatMap() {
     map.current.addControl(new mapboxgl.FullscreenControl(), "top-right");
 
     map.current.on("load", function () {
+      loadMunicipalityBoundaries()
+        .then((boundaries) => {
+          if (!map.current) return;
+          addMunicipalityBoundaryLayers(map.current, {
+            data: boundaries,
+            theme: "dark",
+            interactive: true,
+            showFill: false,
+          });
+        })
+        .catch((error) => console.error("[HeatMap] Error loading boundaries:", error));
+
       // Add heatmap source
       map.current.addSource("solar-heatmap", {
         type: "geojson",

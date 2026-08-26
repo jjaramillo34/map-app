@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, Menu, MapPin, Layers3, Flame, Globe, BarChart3 } from "lucide-react";
+import { ChevronDown, Menu, MapPin, Layers3, Flame, Globe, BarChart3, Trophy } from "lucide-react";
 
 const Header = () => {
   const location = useLocation();
@@ -46,7 +46,7 @@ const Header = () => {
                 type="button"
                 aria-haspopup="true"
                 className={`flex items-center gap-1 rounded-lg px-4 py-2 font-medium transition-all duration-200 ${
-                isActive("/mapa") || isActive("/cluster") || isActive("/heatmap") || isActive("/3d")
+                isActive("/mapa") || isActive("/cluster") || isActive("/heatmap") || isActive("/3d") || isActive("/oportunidad")
                   ? "bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-md"
                   : "text-gray-700 hover:bg-gray-100 hover:text-primary-600"
                 }`}
@@ -75,6 +75,13 @@ const Header = () => {
                 >
                   <Flame className="w-4 h-4" />
                   Mapa de Calor
+                </Link>
+                <Link
+                  to="/oportunidad"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <Trophy className="w-4 h-4" />
+                  Mapa de oportunidad
                 </Link>
                 <Link
                   to="/3d"
@@ -146,6 +153,7 @@ const Header = () => {
           {[
             ["/cluster", "Clusters"],
             ["/heatmap", "Mapa de calor"],
+            ["/oportunidad", "Oportunidad"],
             ["/3d", "Vista 3D"],
           ].map(([path, label]) => (
             <Link

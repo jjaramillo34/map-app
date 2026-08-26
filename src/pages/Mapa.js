@@ -4,6 +4,7 @@ import geoJson from "../data/geojson.geojson";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import Layout from "../components/Layout";
 import { Copy, LocateFixed, MapPin, RotateCcw } from "lucide-react";
+import { addMunicipalityBoundaryLayers, loadMunicipalityBoundaries } from "../utils/municipalityBoundaries";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -149,6 +150,18 @@ export default function Mapa() {
 
     // parse the geojson data and add in clusters to the map
     map.current.on("load", function () {
+      loadMunicipalityBoundaries()
+        .then((boundaries) => {
+          if (!map.current) return;
+          addMunicipalityBoundaryLayers(map.current, {
+            data: boundaries,
+            theme: "light",
+            interactive: true,
+            beforeId: map.current.getLayer("clusters") ? "clusters" : undefined,
+          });
+        })
+        .catch((error) => console.error("[Mapa] Error loading boundaries:", error));
+
       // add a clustered GeoJSON source for a sample set of earthquakes
       map.current.addSource("earthquakes", {
         type: "geojson",

@@ -7,6 +7,14 @@
 const STORAGE_KEY = 'municipality_extra_data';
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/municipalities';
 
+const parseJsonResponse = async (response) => {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error('API returned a non-JSON response');
+  }
+  return response.json();
+};
+
 /**
  * Get all municipality data from MongoDB
  * @returns {Promise<Object>} - Object with municipality names as keys
@@ -17,7 +25,7 @@ export const getAllMunicipalityData = async () => {
     if (!response.ok) {
       throw new Error('Failed to fetch from API');
     }
-    const data = await response.json();
+    const data = await parseJsonResponse(response);
     return data || {};
   } catch (error) {
     console.warn('Error loading from MongoDB, falling back to localStorage:', error);
@@ -47,14 +55,18 @@ export const getMunicipalityData = async (municipioName) => {
     if (!response.ok) {
       throw new Error('Failed to fetch from API');
     }
-    const data = await response.json();
-    return data;
+    return parseJsonResponse(response);
   } catch (error) {
     console.warn('Error loading from MongoDB, falling back to localStorage:', error);
     // Fallback to localStorage
     try {
       const allData = getAllMunicipalityDataSync();
-      return allData[municipioName] || null;
+      const exact = allData[municipioName];
+      if (exact) return exact;
+      const match = Object.keys(allData).find(
+        (key) => key.localeCompare(municipioName, 'es', { sensitivity: 'base' }) === 0
+      );
+      return match ? allData[match] : null;
     } catch (localError) {
       console.error('Error loading from localStorage:', localError);
       return null;
@@ -75,6 +87,7 @@ export const saveMunicipalityData = async (municipioName, data) => {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({
         name: municipioName,
         ...data,
@@ -128,6 +141,7 @@ export const deleteMunicipalityData = async (municipioName) => {
     const encodedName = encodeURIComponent(municipioName);
     const response = await fetch(`${API_BASE_URL}?name=${encodedName}`, {
       method: 'DELETE',
+      credentials: 'include',
     });
 
     if (!response.ok && response.status !== 404) {
