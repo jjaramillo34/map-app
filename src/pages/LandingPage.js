@@ -11,11 +11,11 @@ const LandingPage = () => {
         {/* Hero Section */}
         <div className="relative overflow-hidden">
           <div className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-primary-100/60 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-40 -left-20 h-80 w-80 rounded-full bg-blue-100/50 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-40 -left-20 h-80 w-80 rounded-full bg-flag-red/10 blur-3xl" />
           <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 md:px-8 md:py-24 lg:grid-cols-[1.05fr_.95fr]">
             <div>
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white/80 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-primary-700 shadow-sm">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="h-2 w-2 rounded-full bg-flag-red" />
                 Datos abiertos de Puerto Rico
               </div>
               {/* Main Heading */}
@@ -66,14 +66,14 @@ const LandingPage = () => {
                 </Link>
                 <Link
                   to="/3d"
-                  className="px-4 py-2 bg-purple-50 text-purple-600 rounded-lg font-medium text-sm shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2"
+                  className="px-4 py-2 bg-flag-red/10 text-flag-red rounded-lg font-medium text-sm shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2"
                 >
                   <Globe className="w-4 h-4" />
                   3D
                 </Link>
                 <Link
                   to="/analytics"
-                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-medium text-sm shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2"
+                  className="px-4 py-2 bg-primary-50 text-primary-700 rounded-lg font-medium text-sm shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2"
                 >
                   <Brain className="w-4 h-4" />
                   Analytics ML
