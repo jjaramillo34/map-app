@@ -6,6 +6,7 @@ import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import {
+  BookmarkPlus,
   Download,
   FileText,
   Loader2,
@@ -19,6 +20,8 @@ import {
 import Layout from "../components/Layout";
 import geoJson from "../data/geojson.geojson";
 import { getAllMunicipalityData } from "../services/municipalityData";
+import { getAdminSession } from "../services/adminAuth";
+import { saveVisitList } from "../services/visitLists";
 import {
   addMunicipalityBoundaryLayers,
   fitMapToMunicipality,
@@ -51,12 +54,18 @@ import {
   visitListCsv,
 } from "../utils/territoryTools";
 import { downloadMunicipioVisitSheet } from "../utils/visitPdf";
+import { normalizePoi, poiLabel } from "../utils/municipalityProfile";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
 const LIGHT_STYLE = "mapbox://styles/mapbox/light-v10";
 const SATELLITE_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 const NEARBY_KM = 5;
+
+const defaultVisitListName = () => {
+  const now = new Date();
+  return `Ruta ${now.toLocaleDateString("es-PR", { day: "numeric", month: "short" })}`;
+};
 
 const OpportunityMap = () => {
   const [searchParams] = useSearchParams();
@@ -85,6 +94,10 @@ const OpportunityMap = () => {
   const [nearby, setNearby] = useState(null);
   const [geoStatus, setGeoStatus] = useState("");
   const [poiStatus, setPoiStatus] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [listName, setListName] = useState(defaultVisitListName);
+  const [savingList, setSavingList] = useState(false);
+  const [listMessage, setListMessage] = useState("");
 
   toolRef.current = tool;
   municipiosRef.current = municipios;
@@ -270,7 +283,10 @@ const OpportunityMap = () => {
           return;
         }
         setSelectedName(name);
-        setTerritory(customersInMunicipio(pointsRef.current, name, boundariesRef.current));
+        setTerritory({
+          ...customersInMunicipio(pointsRef.current, name, boundariesRef.current),
+          source: "municipio",
+        });
       },
     });
     applyFill();
@@ -303,6 +319,12 @@ const OpportunityMap = () => {
       }
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    getAdminSession()
+      .then((session) => setIsAdmin(Boolean(session)))
+      .catch(() => setIsAdmin(false));
   }, []);
 
   useEffect(() => {
@@ -464,17 +486,32 @@ const OpportunityMap = () => {
       setPoiStatus("Buscando puntos de interés…");
       const features = [];
       for (const landmark of landmarks) {
-        const cacheKey = `${selected.name}:${landmark}`;
+        const poi = normalizePoi(landmark);
+        if (!poi) continue;
+        const label = poiLabel(poi);
+        if (Number.isFinite(poi.lat) && Number.isFinite(poi.lng)) {
+          features.push({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [poi.lng, poi.lat] },
+            properties: { title: label },
+          });
+          continue;
+        }
+        const cacheKey = `${selected.name}:${poi.name}`;
         let result = geocodeCache.current.get(cacheKey);
         if (!result) {
-          result = await geocodeLandmark(`${landmark}, ${selected.name}, Puerto Rico`, proximity, mapboxgl.accessToken);
+          result = await geocodeLandmark(
+            `${poi.name}, ${selected.name}, Puerto Rico`,
+            proximity,
+            mapboxgl.accessToken
+          );
           if (result) geocodeCache.current.set(cacheKey, result);
         }
         if (result) {
           features.push({
             type: "Feature",
             geometry: { type: "Point", coordinates: [result.lng, result.lat] },
-            properties: { title: landmark },
+            properties: { title: label },
           });
         }
       }
@@ -498,7 +535,8 @@ const OpportunityMap = () => {
           return { minutes, ...summary };
         });
         setIsochroneCounts(counts);
-        setTerritory(counts.find((item) => item.minutes === 15) || counts[0] || null);
+        const selectedBand = counts.find((item) => item.minutes === 15) || counts[0] || null;
+        setTerritory(selectedBand ? { ...selectedBand, source: "isochrone" } : null);
         setGeoStatus("");
       } catch (isochroneError) {
         console.error(isochroneError);
@@ -546,6 +584,26 @@ const OpportunityMap = () => {
       `lista-visitas-${new Date().toISOString().slice(0, 10)}.csv`,
       visitListCsv(territory.groups)
     );
+  };
+
+  const saveCurrentList = async () => {
+    if (!territory?.groups?.length) return;
+    const name = listName.trim() || defaultVisitListName();
+    setSavingList(true);
+    setListMessage("");
+    try {
+      await saveVisitList({
+        name,
+        source: territory.source || tool,
+        groups: territory.groups,
+        customers: territory.customers,
+      });
+      setListMessage(`Guardada: ${name}`);
+    } catch (saveError) {
+      setListMessage(saveError.message || "No se pudo guardar la ruta");
+    } finally {
+      setSavingList(false);
+    }
   };
 
   const toolButton = (id, label, Icon) => (
@@ -743,6 +801,41 @@ const OpportunityMap = () => {
                     </li>
                   ))}
                 </ul>
+                {isAdmin ? (
+                  <div className="mt-3 flex flex-col gap-2">
+                    <input
+                      type="text"
+                      value={listName}
+                      onChange={(event) => setListName(event.target.value)}
+                      placeholder="Ruta Sur, 26 ago"
+                      className="w-full rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveCurrentList}
+                      disabled={savingList || !territory.groups.length}
+                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {savingList ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <BookmarkPlus className="h-3.5 w-3.5" />
+                      )}
+                      {savingList ? "Guardando…" : "Guardar ruta"}
+                    </button>
+                    {listMessage ? (
+                      <p className="text-xs text-primary-800">{listMessage}</p>
+                    ) : (
+                      <p className="text-xs text-gray-500">
+                        Queda en admin → Rutas. Agrupa por municipio y barrio, sin direcciones.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-gray-500">
+                    Inicia sesión en admin para guardar esta lista como ruta.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -774,14 +867,25 @@ const MunicipioCard = ({ municipio, poiStatus, onPdf, onUseTerritory }) => (
     ) : (
       <p className="text-sm text-gray-400">Sin oportunidad solar de Gemini todavía.</p>
     )}
+    {municipio.salesNotes ? (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+          Notas de ventas
+        </p>
+        <p className="mt-1 whitespace-pre-wrap text-sm text-amber-950">{municipio.salesNotes}</p>
+      </div>
+    ) : null}
     {municipio.pointsOfInterest?.length > 0 && (
       <ul className="space-y-1 text-xs text-gray-600">
-        {municipio.pointsOfInterest.slice(0, 4).map((place) => (
-          <li key={place} className="flex items-start gap-1">
-            <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" />
-            {place}
-          </li>
-        ))}
+        {municipio.pointsOfInterest.slice(0, 4).map((place, index) => {
+          const label = poiLabel(place);
+          return (
+            <li key={`${label}-${index}`} className="flex items-start gap-1">
+              <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" />
+              {label}
+            </li>
+          );
+        })}
       </ul>
     )}
     {poiStatus ? <p className="text-xs text-gray-400">{poiStatus}</p> : null}

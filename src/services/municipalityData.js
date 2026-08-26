@@ -21,7 +21,7 @@ const parseJsonResponse = async (response) => {
  */
 export const getAllMunicipalityData = async () => {
   try {
-    const response = await fetch(API_BASE_URL);
+    const response = await fetch(API_BASE_URL, { credentials: "include" });
     if (!response.ok) {
       throw new Error('Failed to fetch from API');
     }
@@ -48,7 +48,9 @@ export const getAllMunicipalityData = async () => {
 export const getMunicipalityData = async (municipioName) => {
   try {
     const encodedName = encodeURIComponent(municipioName);
-    const response = await fetch(`${API_BASE_URL}?name=${encodedName}`);
+    const response = await fetch(`${API_BASE_URL}?name=${encodedName}`, {
+      credentials: "include",
+    });
     if (response.status === 404) {
       return null;
     }

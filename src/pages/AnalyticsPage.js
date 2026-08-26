@@ -27,6 +27,7 @@ import {
   municipioPath,
   sortMunicipios,
 } from "../utils/analyticsInsights";
+import { poiLabel } from "../utils/municipalityProfile";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -88,7 +89,7 @@ const LocalStory = ({ municipio, compact = false }) => {
         <p className="flex items-start gap-1 text-xs text-gray-500">
           <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
           <span>
-            {municipio.pointsOfInterest[0]}
+            {poiLabel(municipio.pointsOfInterest[0])}
             {municipio.pointsOfInterest.length > 1
               ? ` · +${municipio.pointsOfInterest.length - 1}`
               : ""}

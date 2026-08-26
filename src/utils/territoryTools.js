@@ -181,6 +181,29 @@ export const geocodeLandmark = async (query, proximity, token) => {
   return { lng: center[0], lat: center[1], placeName: data.features[0].place_name };
 };
 
+export const locatePoiList = async (list = [], municipioName, token) => {
+    const located = [];
+    for (const poi of list) {
+      const lat = Number(poi?.lat);
+      const lng = Number(poi?.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        located.push({ ...poi, lat, lng });
+        continue;
+      }
+    if (!token || !poi?.name) {
+      located.push(poi);
+      continue;
+    }
+    const result = await geocodeLandmark(
+      `${poi.name}, ${municipioName}, Puerto Rico`,
+      null,
+      token
+    );
+    located.push(result ? { ...poi, lat: result.lat, lng: result.lng } : poi);
+  }
+  return located;
+};
+
 export const joinMetricsToBoundaries = (boundaries, municipios = []) => ({
   type: "FeatureCollection",
   features: (boundaries?.features || []).map((feature) => {

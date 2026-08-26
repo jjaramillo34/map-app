@@ -9,20 +9,13 @@ import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 const { getSessionFromRequest } = require('../lib/adminAuth');
+const { serializeMunicipality } = require('../lib/publicProfile');
 
 const DB_NAME = 'powersolarpr';
 const COLLECTION_NAME = 'municipalities';
 
 function namesMatch(left, right) {
   return left.localeCompare(right, 'es', { sensitivity: 'base' }) === 0;
-}
-
-function serializeMunicipality(municipality) {
-  if (!municipality) return municipality;
-  return {
-    ...municipality,
-    _id: municipality._id ? String(municipality._id) : undefined,
-  };
 }
 
 async function findMunicipality(collection, name) {
@@ -47,7 +40,11 @@ export default async function handler(req, res) {
         if (!municipality) {
           return res.status(404).json({ error: 'Municipality not found' });
         }
-        return res.status(200).json(serializeMunicipality(municipality));
+        return res.status(200).json(
+          serializeMunicipality(municipality, {
+            includePrivate: Boolean(getSessionFromRequest(req)),
+          })
+        );
 
       case 'DELETE':
         if (!getSessionFromRequest(req)) {

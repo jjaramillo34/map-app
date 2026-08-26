@@ -83,6 +83,27 @@ Datos reales del mapa de clientes solares:
 `;
 }
 
+function normalizeGeneratedPoi(item) {
+  if (!item) return null;
+  if (typeof item === "string") {
+    const trimmed = item.trim();
+    if (!trimmed) return null;
+    const [name, ...rest] = trimmed.split(/\s+[—–-]\s+/);
+    return { name: name.trim(), why: rest.join(" — ").trim(), lat: null, lng: null };
+  }
+  if (typeof item === "object") {
+    const name = String(item.name || item.title || "").trim();
+    if (!name) return null;
+    return {
+      name,
+      why: String(item.why || item.reason || "").trim(),
+      lat: null,
+      lng: null,
+    };
+  }
+  return null;
+}
+
 async function generateMunicipalityProfile(municipioName, stats = {}, model) {
   const prompt = `Eres un experto en municipios de Puerto Rico, energía solar y desarrollo de mercado.
 
@@ -95,8 +116,8 @@ Requisitos:
 - Usa Censo de EE.UU. (especifica el año, preferiblemente 2020) y Wikipedia
 - Incluye datos demográficos, ingresos, educación, vivienda y empleo
 - Destaca el potencial solar y el contexto comercial local
-- pointsOfInterest: 3-5 lugares concretos (playas, plazas, parques industriales, hospitales, centros comerciales, corredores, sitios históricos) que ayuden a un vendedor de energía solar a entender el territorio
-- solarOpportunity: 2-3 frases sobre por qué este municipio es una oportunidad de mercado solar (tejados, turismo, comercio, resiliencia, ingresos)
+- solarOpportunity: 2-3 frases sobre por qué este municipio es una oportunidad de mercado solar
+- pointsOfInterest: 3-5 lugares concretos. Cada uno es un objeto con name (lugar) y why (por qué importa a un vendedor solar)
 
 Responde SOLO con JSON válido:
 {
@@ -104,7 +125,9 @@ Responde SOLO con JSON válido:
   "tags": ["tag1", "tag2", "tag3"],
   "highlights": ["dato 1", "dato 2", "dato 3"],
   "funFact": "dato curioso",
-  "pointsOfInterest": ["Lugar — por qué importa", "Lugar 2 — por qué importa"],
+  "pointsOfInterest": [
+    { "name": "Plaza de Recreo", "why": "centro comercial del casco" }
+  ],
   "solarOpportunity": "oportunidad de mercado solar",
   "sources": ["US Census Bureau 2020", "Wikipedia - ${municipioName}"],
   "censusYear": "2020"
@@ -118,9 +141,9 @@ Responde SOLO con JSON válido:
     tags: Array.isArray(profile.tags) ? profile.tags : [],
     highlights: Array.isArray(profile.highlights) ? profile.highlights : [],
     funFact: profile.funFact || "",
-    pointsOfInterest: Array.isArray(profile.pointsOfInterest)
-      ? profile.pointsOfInterest
-      : [],
+    pointsOfInterest: (Array.isArray(profile.pointsOfInterest) ? profile.pointsOfInterest : [])
+      .map(normalizeGeneratedPoi)
+      .filter(Boolean),
     solarOpportunity: profile.solarOpportunity || "",
     sources: Array.isArray(profile.sources) ? profile.sources : [],
     censusYear: profile.censusYear || "",

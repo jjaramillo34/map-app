@@ -1,3 +1,5 @@
+import { normalizePoiList } from "./municipalityProfile";
+
 const toNumber = (value) => {
   const parsed = typeof value === "number" ? value : parseFloat(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -85,15 +87,14 @@ export const mergeMunicipalityProfiles = (municipios = [], profilesByName = {}) 
 
   return municipios.map((item) => {
     const profile = findProfile(item.name);
-    const pointsOfInterest = Array.isArray(profile?.pointsOfInterest)
-      ? profile.pointsOfInterest.filter(Boolean)
-      : [];
+    const pointsOfInterest = normalizePoiList(profile?.pointsOfInterest);
 
     return {
       ...item,
       solarOpportunity: profile?.solarOpportunity || "",
       pointsOfInterest,
       funFact: profile?.funFact || "",
+      salesNotes: profile?.salesNotes || "",
       hasProfile: Boolean(
         profile?.description ||
           profile?.solarOpportunity ||

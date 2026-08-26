@@ -31,6 +31,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { getMunicipalityData } from "../services/municipalityData";
+import { normalizePoi } from "../utils/municipalityProfile";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -680,15 +681,24 @@ const MunicipioDetail = () => {
                     <h3 className="text-xl font-bold text-gray-900">Puntos de interés</h3>
                   </div>
                   <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {extraData.pointsOfInterest.map((place, index) => (
-                      <li
-                        key={`${place}-${index}`}
-                        className="flex items-start gap-3 rounded-xl border border-rose-100 bg-rose-50/70 p-4"
-                      >
-                        <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-rose-500" />
-                        <span className="flex-1 leading-relaxed text-gray-700">{place}</span>
-                      </li>
-                    ))}
+                    {extraData.pointsOfInterest.map((place, index) => {
+                      const poi = normalizePoi(place);
+                      if (!poi) return null;
+                      return (
+                        <li
+                          key={`${poi.name}-${index}`}
+                          className="flex items-start gap-3 rounded-xl border border-rose-100 bg-rose-50/70 p-4"
+                        >
+                          <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-rose-500" />
+                          <span className="flex-1 leading-relaxed text-gray-700">
+                            <span className="font-medium">{poi.name}</span>
+                            {poi.why ? (
+                              <span className="mt-1 block text-sm text-gray-500">{poi.why}</span>
+                            ) : null}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

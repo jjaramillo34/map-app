@@ -1,6 +1,8 @@
 const { MongoClient } = require("mongodb");
 const { handleLogin, handleSession, handleLogout, getSessionFromRequest } = require("../api/lib/adminAuth");
 const { handleGenerate } = require("../api/lib/gemini");
+const { serializeMunicipality } = require("../api/lib/publicProfile");
+const { handleVisitLists } = require("../api/lib/visitLists");
 
 const DB_NAME = "powersolarpr";
 const COLLECTION_NAME = "municipalities";
@@ -19,14 +21,6 @@ function getClient() {
 
 function namesMatch(left, right) {
   return left.localeCompare(right, "es", { sensitivity: "base" }) === 0;
-}
-
-function serializeMunicipality(municipality) {
-  if (!municipality) return municipality;
-  return {
-    ...municipality,
-    _id: municipality._id ? String(municipality._id) : undefined,
-  };
 }
 
 function sendJson(res, status, body) {
@@ -61,6 +55,17 @@ module.exports = function (app) {
   app.use("/api/admin/session", async (req, res) => handleSession(req, res));
   app.use("/api/admin/logout", async (req, res) => handleLogout(req, res));
   app.use("/api/admin/generate", async (req, res) => handleGenerate(req, res));
+  app.use("/api/admin/visit-lists", async (req, res) => {
+    try {
+      const client = await getClient();
+      return handleVisitLists(req, res, async () =>
+        client.db(DB_NAME).collection("visitLists")
+      );
+    } catch (error) {
+      console.error("[setupProxy] visit-lists:", error);
+      return sendJson(res, 500, { error: "Internal server error" });
+    }
+  });
 
   app.use("/api/municipalities", async (req, res) => {
     try {
@@ -75,18 +80,19 @@ module.exports = function (app) {
       }
 
       if (req.method === "GET") {
+        const includePrivate = Boolean(getSessionFromRequest(req));
         if (name) {
           const municipality = await findMunicipality(collection, name);
           if (!municipality) {
             return sendJson(res, 404, { error: "Municipality not found" });
           }
-          return sendJson(res, 200, serializeMunicipality(municipality));
+          return sendJson(res, 200, serializeMunicipality(municipality, { includePrivate }));
         }
 
         const municipalities = await collection.find({}).toArray();
         const result = {};
         municipalities.forEach((item) => {
-          result[item.name] = serializeMunicipality(item);
+          result[item.name] = serializeMunicipality(item, { includePrivate });
         });
         return sendJson(res, 200, result);
       }

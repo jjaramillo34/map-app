@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { BIVARIATE_CLASSES } from "./analyticsInsights";
+import { poiLabel } from "./municipalityProfile";
 
 export const downloadMunicipioVisitSheet = (municipio) => {
   if (!municipio) return;
@@ -51,7 +52,7 @@ export const downloadMunicipioVisitSheet = (municipio) => {
   doc.text("Puntos de interés", 14, y);
   y += 4;
   const pois = municipio.pointsOfInterest?.length
-    ? municipio.pointsOfInterest.map((item) => [item])
+    ? municipio.pointsOfInterest.map((item) => [poiLabel(item) || String(item)])
     : [["Sin puntos de interés generados"]];
   autoTable(doc, {
     startY: y,
@@ -61,6 +62,16 @@ export const downloadMunicipioVisitSheet = (municipio) => {
   });
 
   y = (doc.lastAutoTable?.finalY || y) + 12;
+  if (municipio.salesNotes) {
+    doc.setFontSize(13);
+    doc.text("Notas de ventas (equipo)", 14, y);
+    y += 7;
+    doc.setFontSize(10);
+    const noteLines = doc.splitTextToSize(municipio.salesNotes, 180);
+    doc.text(noteLines, 14, y);
+    y += noteLines.length * 5 + 8;
+  }
+
   if (municipio.funFact) {
     doc.setFontSize(13);
     doc.text("Dato curioso", 14, y);

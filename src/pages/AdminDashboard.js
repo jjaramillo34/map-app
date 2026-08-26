@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import {
@@ -13,6 +13,9 @@ import {
   Search,
   MapPin,
   Zap,
+  ClipboardList,
+  ListTodo,
+  Route,
 } from "lucide-react";
 import {
   getAllMunicipalityData,
@@ -29,28 +32,21 @@ import {
   saveGeminiModel,
 } from "../services/geminiService";
 import geoJson from "../data/geojson.geojson";
-
-// List of all Puerto Rico municipalities
-const ALL_MUNICIPALITIES = [
-  "Adjuntas", "Aguada", "Aguadilla", "Aguas Buenas", "Aibonito", "Añasco", "Arecibo",
-  "Arroyo", "Barceloneta", "Barranquitas", "Bayamón", "Cabo Rojo", "Caguas",
-  "Camuy", "Canóvanas", "Carolina", "Cataño", "Cayey", "Ceiba", "Ciales",
-  "Cidra", "Coamo", "Comerío", "Corozal", "Culebra", "Dorado", "Fajardo",
-  "Florida", "Guánica", "Guayama", "Guayanilla", "Guaynabo", "Gurabo",
-  "Hatillo", "Hormigueros", "Humacao", "Isabela", "Jayuya", "Juana Díaz",
-  "Juncos", "Lajas", "Lares", "Las Marías", "Las Piedras", "Loíza",
-  "Luquillo", "Manatí", "Maricao", "Maunabo", "Mayagüez", "Moca",
-  "Morovis", "Naguabo", "Naranjito", "Orocovis", "Patillas", "Peñuelas",
-  "Ponce", "Quebradillas", "Rincón", "Río Grande", "Sabana Grande",
-  "Salinas", "San Germán", "San Juan", "San Lorenzo", "San Sebastián",
-  "Santa Isabel", "Toa Alta", "Toa Baja", "Trujillo Alto", "Utuado",
-  "Vega Alta", "Vega Baja", "Vieques", "Villalba", "Yabucoa", "Yauco",
-];
-
-const namesMatch = (left, right) =>
-  String(left || "").localeCompare(String(right || ""), "es", {
-    sensitivity: "base",
-  }) === 0;
+import { ALL_MUNICIPALITIES } from "../data/municipioNames";
+import AdminCoverageQueue from "../components/admin/AdminCoverageQueue";
+import AdminVisitLists from "../components/admin/AdminVisitLists";
+import { locatePoiList } from "../utils/territoryTools";
+import {
+  aggregateMunicipalityStats,
+  computeGapScores,
+} from "../utils/analyticsInsights";
+import {
+  findProfile,
+  hasPublicProfile,
+  isStaleProfile,
+  namesMatch,
+  normalizePoiList,
+} from "../utils/municipalityProfile";
 
 const resolveGeoJson = async (data) => {
   if (typeof data === "string" && (data.startsWith("/") || data.startsWith("http"))) {
@@ -121,8 +117,11 @@ const AdminDashboard = () => {
   const [tags, setTags] = useState("");
   const [highlights, setHighlights] = useState("");
   const [funFact, setFunFact] = useState("");
-  const [pointsOfInterest, setPointsOfInterest] = useState("");
+  const [pointsOfInterest, setPointsOfInterest] = useState([]);
   const [solarOpportunity, setSolarOpportunity] = useState("");
+  const [salesNotes, setSalesNotes] = useState("");
+  const [profiles, setProfiles] = useState({});
+  const [adminTab, setAdminTab] = useState("queue");
   const [sources, setSources] = useState("");
   const [censusYear, setCensusYear] = useState("");
   const [loading, setLoading] = useState(false);
@@ -131,6 +130,7 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [geoFeatures, setGeoFeatures] = useState([]);
   const [geminiModel, setGeminiModel] = useState(getSavedGeminiModel);
+  const [locatingPoi, setLocatingPoi] = useState(null);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -158,7 +158,8 @@ const AdminDashboard = () => {
   const loadMunicipalities = async () => {
     try {
       const data = await getAllMunicipalityData();
-      setMunicipalities(Object.keys(data));
+      setProfiles(data || {});
+      setMunicipalities(Object.keys(data || {}));
     } catch (error) {
       console.error('Error loading municipalities:', error);
       setMunicipalities([]);
@@ -173,10 +174,9 @@ const AdminDashboard = () => {
         setTags(data.tags ? data.tags.join(", ") : "");
         setHighlights(data.highlights ? data.highlights.join("\n") : "");
         setFunFact(data.funFact || "");
-        setPointsOfInterest(
-          data.pointsOfInterest ? data.pointsOfInterest.join("\n") : ""
-        );
+        setPointsOfInterest(normalizePoiList(data.pointsOfInterest));
         setSolarOpportunity(data.solarOpportunity || "");
+        setSalesNotes(data.salesNotes || "");
         setSources(data.sources ? data.sources.join(", ") : "");
         setCensusYear(data.censusYear || "");
       } else {
@@ -193,8 +193,9 @@ const AdminDashboard = () => {
     setTags("");
     setHighlights("");
     setFunFact("");
-    setPointsOfInterest("");
+    setPointsOfInterest([]);
     setSolarOpportunity("");
+    setSalesNotes("");
     setSources("");
     setCensusYear("");
   };
@@ -235,9 +236,7 @@ const AdminDashboard = () => {
       );
       setFunFact(profile.funFact || "");
       setPointsOfInterest(
-        profile.pointsOfInterest?.length
-          ? profile.pointsOfInterest.join("\n")
-          : ""
+        await locatePois(normalizePoiList(profile.pointsOfInterest), selectedMunicipio)
       );
       setSolarOpportunity(profile.solarOpportunity || "");
       setSources(profile.sources?.length ? profile.sources.join(", ") : "");
@@ -283,11 +282,9 @@ const AdminDashboard = () => {
           .map((h) => h.trim())
           .filter((h) => h.length > 0),
         funFact: funFact.trim(),
-        pointsOfInterest: pointsOfInterest
-          .split("\n")
-          .map((item) => item.trim())
-          .filter((item) => item.length > 0),
+        pointsOfInterest: normalizePoiList(pointsOfInterest),
         solarOpportunity: solarOpportunity.trim(),
+        salesNotes: salesNotes.trim(),
         sources: sources
           .split(",")
           .map((s) => s.trim())
@@ -344,6 +341,69 @@ const AdminDashboard = () => {
     m.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const coverage = useMemo(() => {
+    const aggregated = aggregateMunicipalityStats(geoFeatures);
+    const merged = ALL_MUNICIPALITIES.map((name) => {
+      const match = aggregated.find((item) => namesMatch(item.name, name));
+      return (
+        match || {
+          name,
+          customers: 0,
+          avgIncome: 0,
+          avgPopulation: 0,
+          penetrationRate: 0,
+        }
+      );
+    });
+    const scored = computeGapScores(merged).map((row) => ({
+      ...row,
+      profile: findProfile(row.name, profiles),
+    }));
+    const missing = scored
+      .filter((row) => !hasPublicProfile(row.profile))
+      .sort((a, b) => (b.gapScore || 0) - (a.gapScore || 0));
+    const stale = scored
+      .filter((row) => isStaleProfile(row.profile))
+      .sort(
+        (a, b) =>
+          Date.parse(a.profile?.updatedAt || 0) -
+          Date.parse(b.profile?.updatedAt || 0)
+      );
+    return { missing, stale, topEmpty: missing.slice(0, 10) };
+  }, [geoFeatures, profiles]);
+
+  const openMunicipio = (name) => {
+    setSelectedMunicipio(name);
+    setAdminTab("edit");
+    scrollToTop();
+  };
+
+  const updatePoi = (index, field, value) => {
+    setPointsOfInterest((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
+  const locatePois = async (list, municipioName) =>
+    locatePoiList(list, municipioName, process.env.REACT_APP_MAPBOX_TOKEN);
+
+  const locateOnePoi = async (index) => {
+    if (!selectedMunicipio) return;
+    const poi = pointsOfInterest[index];
+    if (!poi?.name) return;
+    setLocatingPoi(index);
+    try {
+      const [located] = await locatePois([poi], selectedMunicipio);
+      setPointsOfInterest((current) =>
+        current.map((item, itemIndex) => (itemIndex === index ? located : item))
+      );
+    } finally {
+      setLocatingPoi(null);
+    }
+  };
+
   return (
     <Layout showFooter={false}>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-primary-50">
@@ -364,6 +424,27 @@ const AdminDashboard = () => {
                 <LogOut className="w-5 h-5" />
                 Cerrar Sesión
               </button>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {[
+                { id: "queue", label: "Cola de contenido", icon: ListTodo },
+                { id: "edit", label: "Editor", icon: ClipboardList },
+                { id: "routes", label: "Rutas", icon: Route },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setAdminTab(tab.id)}
+                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold ${
+                    adminTab === tab.id
+                      ? "bg-white text-primary-800"
+                      : "bg-white/15 text-white hover:bg-white/25"
+                  }`}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -387,6 +468,25 @@ const AdminDashboard = () => {
             </div>
           )}
 
+          {adminTab === "queue" && (
+            <AdminCoverageQueue
+              missing={coverage.missing}
+              stale={coverage.stale}
+              topEmpty={coverage.topEmpty}
+              geminiModel={geminiModel}
+              getStats={(name) => computeMunicipalityStats(geoFeatures, name)}
+              onOpen={openMunicipio}
+              onSaved={loadMunicipalities}
+              onModelChange={(model) => {
+                setGeminiModel(model);
+                saveGeminiModel(model);
+              }}
+            />
+          )}
+
+          {adminTab === "routes" && <AdminVisitLists />}
+
+          {adminTab === "edit" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Sidebar - Municipality List */}
             <div className="lg:col-span-1">
@@ -413,7 +513,7 @@ const AdminDashboard = () => {
                     return (
                       <button
                         key={municipio}
-                        onClick={() => setSelectedMunicipio(municipio)}
+                        onClick={() => openMunicipio(municipio)}
                         className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
                           selectedMunicipio === municipio
                             ? "bg-primary-600 text-white shadow-md"
@@ -567,18 +667,70 @@ const AdminDashboard = () => {
                     <div>
                       <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700">
                         <MapPin className="h-4 w-4 text-primary-600" />
-                        Puntos de interés (uno por línea)
+                        Puntos de interés
                       </label>
-                      <textarea
-                        value={pointsOfInterest}
-                        onChange={(e) => setPointsOfInterest(e.target.value)}
-                        rows={4}
-                        className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-transparent focus:ring-2 focus:ring-primary-500"
-                        placeholder="Plaza de Recreo — centro comercial del casco&#10;Hospital o parque industrial — ancla de techos grandes..."
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        Lugares útiles para ventas solares: playas, plazas, hospitales, corredores comerciales e industriales.
-                      </p>
+                      <div className="space-y-3">
+                        {pointsOfInterest.map((poi, index) => (
+                          <div key={`${poi.name}-${index}`} className="rounded-lg border border-gray-200 p-3">
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                              <input
+                                type="text"
+                                value={poi.name}
+                                onChange={(event) => updatePoi(index, "name", event.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                placeholder="Nombre del lugar"
+                              />
+                              <input
+                                type="text"
+                                value={poi.why}
+                                onChange={(event) => updatePoi(index, "why", event.target.value)}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                placeholder="Por qué importa"
+                              />
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+                              <span>
+                                {poi.lat && poi.lng
+                                  ? `${poi.lat.toFixed(4)}, ${poi.lng.toFixed(4)}`
+                                  : "Sin coordenadas"}
+                              </span>
+                              <div className="flex gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => locateOnePoi(index)}
+                                  disabled={!poi.name || locatingPoi === index}
+                                  className="font-semibold text-primary-700 disabled:opacity-50"
+                                >
+                                  {locatingPoi === index ? "Ubicando…" : "Ubicar"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPointsOfInterest((current) =>
+                                      current.filter((_, itemIndex) => itemIndex !== index)
+                                    )
+                                  }
+                                  className="font-semibold text-red-600"
+                                >
+                                  Quitar
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPointsOfInterest((current) => [
+                              ...current,
+                              { name: "", why: "", lat: null, lng: null },
+                            ])
+                          }
+                          className="rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm font-medium text-gray-600"
+                        >
+                          Añadir punto de interés
+                        </button>
+                      </div>
                     </div>
 
                     <div>
@@ -629,6 +781,22 @@ const AdminDashboard = () => {
                       </p>
                     </div>
 
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Notas de ventas (privado)
+                      </label>
+                      <textarea
+                        value={salesNotes}
+                        onChange={(e) => setSalesNotes(e.target.value)}
+                        rows={4}
+                        className="w-full resize-none rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3 outline-none focus:ring-2 focus:ring-amber-400"
+                        placeholder="A quién visitar, mejores días, estacionamiento, portones, ya visitado…"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Solo lo ve el equipo admin. No aparece en la ficha pública.
+                      </p>
+                    </div>
+
                     {/* Save Button */}
                     <div className="flex gap-4">
                       <button
@@ -654,6 +822,8 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
+          )}
+
         </div>
       </div>
     </Layout>
