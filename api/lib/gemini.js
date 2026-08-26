@@ -1,11 +1,10 @@
 const { getSessionFromRequest, readJsonBody, sendJson } = require("./adminAuth");
+const {
+  defaultModel: DEFAULT_MODEL,
+  models: GEMINI_MODEL_OPTIONS,
+} = require("../../src/data/geminiModels.json");
 
-const GEMINI_MODELS = [
-  "gemini-2.0-flash",
-  "gemini-2.5-flash",
-  "gemini-flash-latest",
-  "gemini-3.5-flash",
-];
+const ALLOWED_MODELS = new Set(GEMINI_MODEL_OPTIONS.map((item) => item.id));
 
 function getApiKey() {
   return String(process.env.GEMINI_API_KEY || "").trim();
@@ -28,55 +27,50 @@ function parseJsonContent(text) {
   }
 }
 
-async function callGemini(prompt, { json = false } = {}) {
+function resolveModel(requested) {
+  const model = String(requested || "").trim();
+  return ALLOWED_MODELS.has(model) ? model : DEFAULT_MODEL;
+}
+
+async function callGemini(prompt, { json = false, model } = {}) {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error("Gemini API key is not configured");
   }
 
-  let lastError = null;
-
-  for (const model of GEMINI_MODELS) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey,
-          },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 4096,
-              ...(json ? { responseMimeType: "application/json" } : {}),
-            },
-          }),
-        }
-      );
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        lastError = new Error(
-          data.error?.message || `Gemini API error: ${response.status}`
-        );
-        continue;
-      }
-
-      const text = extractText(data);
-      if (!text) {
-        lastError = new Error("Gemini no devolvió contenido");
-        continue;
-      }
-      return json ? parseJsonContent(text) : text;
-    } catch (error) {
-      lastError = error;
+  const selectedModel = resolveModel(model);
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4096,
+          ...(json ? { responseMimeType: "application/json" } : {}),
+        },
+      }),
     }
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      data.error?.message || `Gemini API error: ${response.status}`
+    );
   }
 
-  throw lastError || new Error("Gemini API error");
+  const text = extractText(data);
+  if (!text) {
+    throw new Error("Gemini no devolvió contenido");
+  }
+
+  return json ? parseJsonContent(text) : text;
 }
 
 function statsBlock(stats = {}) {
@@ -89,7 +83,7 @@ Datos reales del mapa de clientes solares:
 `;
 }
 
-async function generateMunicipalityProfile(municipioName, stats = {}) {
+async function generateMunicipalityProfile(municipioName, stats = {}, model) {
   const prompt = `Eres un experto en municipios de Puerto Rico, energía solar y desarrollo de mercado.
 
 Genera un JSON para el municipio de ${municipioName}, Puerto Rico.
@@ -116,8 +110,10 @@ Responde SOLO con JSON válido:
   "censusYear": "2020"
 }`;
 
-  const profile = await callGemini(prompt, { json: true });
+  const selectedModel = resolveModel(model);
+  const profile = await callGemini(prompt, { json: true, model: selectedModel });
   return {
+    model: selectedModel,
     description: profile.description || "",
     tags: Array.isArray(profile.tags) ? profile.tags : [],
     highlights: Array.isArray(profile.highlights) ? profile.highlights : [],
@@ -160,7 +156,8 @@ async function handleGenerate(req, res) {
   try {
     const profile = await generateMunicipalityProfile(
       municipioName,
-      body.stats || {}
+      body.stats || {},
+      body.model
     );
     return sendJson(res, 200, profile);
   } catch (error) {

@@ -21,7 +21,13 @@ import {
   deleteMunicipalityData,
 } from "../services/municipalityData";
 import { logoutAdmin } from "../services/adminAuth";
-import { generateMunicipalityProfile } from "../services/geminiService";
+import {
+  generateMunicipalityProfile,
+  GEMINI_MODELS,
+  getGeminiModelLabel,
+  getSavedGeminiModel,
+  saveGeminiModel,
+} from "../services/geminiService";
 import geoJson from "../data/geojson.geojson";
 
 // List of all Puerto Rico municipalities
@@ -124,6 +130,7 @@ const AdminDashboard = () => {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [geoFeatures, setGeoFeatures] = useState([]);
+  const [geminiModel, setGeminiModel] = useState(getSavedGeminiModel);
 
   useEffect(() => {
     loadMunicipalities();
@@ -212,7 +219,8 @@ const AdminDashboard = () => {
       const stats = computeMunicipalityStats(features, selectedMunicipio);
       const profile = await generateMunicipalityProfile(
         selectedMunicipio,
-        stats
+        stats,
+        geminiModel
       );
 
       setDescription(profile.description || "");
@@ -232,7 +240,9 @@ const AdminDashboard = () => {
 
       setMessage({
         type: "success",
-        text: "Contenido generado con Gemini usando datos reales del mapa",
+        text: `Contenido generado con ${getGeminiModelLabel(
+          profile.model || geminiModel
+        )} usando datos reales del mapa`,
       });
     } catch (error) {
       console.error("Error generating content:", error);
@@ -443,22 +453,43 @@ const AdminDashboard = () => {
                   <div className="space-y-6">
                     {/* Description */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <label className="block text-sm font-medium text-gray-700">
                           Descripción
                         </label>
-                        <button
-                          onClick={handleGenerate}
-                          disabled={generating}
-                          className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-sm rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all flex items-center gap-2 disabled:opacity-50"
-                        >
-                          {generating ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-4 h-4" />
-                          )}
-                          {generating ? "Generando..." : "Generar con Gemini"}
-                        </button>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <label className="sr-only" htmlFor="gemini-model">
+                            Modelo de Gemini
+                          </label>
+                          <select
+                            id="gemini-model"
+                            value={geminiModel}
+                            onChange={(event) => {
+                              setGeminiModel(event.target.value);
+                              saveGeminiModel(event.target.value);
+                            }}
+                            disabled={generating}
+                            className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 outline-none focus:border-transparent focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                          >
+                            {GEMINI_MODELS.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.label}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={handleGenerate}
+                            disabled={generating}
+                            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-1.5 text-sm text-white transition-all hover:from-purple-700 hover:to-purple-800 disabled:opacity-50"
+                          >
+                            {generating ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
+                            {generating ? "Generando..." : "Generar con Gemini"}
+                          </button>
+                        </div>
                       </div>
                       <textarea
                         value={description}
