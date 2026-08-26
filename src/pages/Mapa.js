@@ -7,16 +7,19 @@ import { Copy, LocateFixed, MapPin, RotateCcw } from "lucide-react";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
+const INITIAL_VIEW = {
+  lng: -66.5901,
+  lat: 18.2208,
+  zoom: 9,
+};
+
 export default function Mapa() {
   const mapContainer = useRef(null);
   const map = useRef(null);
   // set the initial state of the map to Puerto Rico
-  const [lng, setLng] = useState(-66.5901);
-  const [lat, setLat] = useState(18.2208);
-  const [zoom, setZoom] = useState(9);
-
-  // read the data from the geojson file
-  const [data] = useState(geoJson);
+  const [lng, setLng] = useState(INITIAL_VIEW.lng);
+  const [lat, setLat] = useState(INITIAL_VIEW.lat);
+  const [zoom, setZoom] = useState(INITIAL_VIEW.zoom);
 
   // get the user's current location
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -41,8 +44,8 @@ export default function Mapa() {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/light-v10",
-      center: [lng, lat],
-      zoom: zoom,
+      center: [INITIAL_VIEW.lng, INITIAL_VIEW.lat],
+      zoom: INITIAL_VIEW.zoom,
       bearing: 0,
       pitch: 0,
     });
@@ -123,8 +126,8 @@ export default function Mapa() {
         default: "Puerto Rico",
 
         proximity: {
-          longitude: lng,
-          latitude: lat,
+          longitude: INITIAL_VIEW.lng,
+          latitude: INITIAL_VIEW.lat,
         },
         //countries: "pr",
         // style the geocoder search input
@@ -151,7 +154,7 @@ export default function Mapa() {
         type: "geojson",
         // Point to GeoJSON data. This example visualizes all M1.0+ earthquakes
         // from 12/22/15 to 1/21/16 as logged by USGS' Earthquake hazards program.
-        data: data,
+        data: geoJson,
         cluster: true,
         clusterMaxZoom: 14, // Max zoom to cluster points on
         clusterRadius: 50, // Radius of each cluster when clustering points (defaults to 50)

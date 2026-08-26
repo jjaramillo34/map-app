@@ -248,11 +248,13 @@ const AnalyticsPage = () => {
       // Capture current centroids to avoid closure issues
       const currentCentroids = [...centroids];
       
-      normalized.forEach((m, idx) => {
+      for (let idx = 0; idx < normalized.length; idx++) {
+        const m = normalized[idx];
         let minDist = Infinity;
         let clusterIdx = 0;
         
-        currentCentroids.forEach((centroid, cIdx) => {
+        for (let cIdx = 0; cIdx < currentCentroids.length; cIdx++) {
+          const centroid = currentCentroids[cIdx];
           const dist = Math.sqrt(
             Math.pow(m.normIncome - centroid.income, 2) +
             Math.pow(m.normPenetration - centroid.penetration, 2) +
@@ -262,10 +264,10 @@ const AnalyticsPage = () => {
             minDist = dist;
             clusterIdx = cIdx;
           }
-        });
+        }
         
         clusters[clusterIdx].push({ ...data[idx], cluster: clusterIdx });
-      });
+      }
 
       // Update centroids - use previous centroids to avoid closure issues
       const previousCentroids = [...centroids];
@@ -1773,4 +1775,3 @@ const AnalyticsPage = () => {
 };
 
 export default AnalyticsPage;
-
