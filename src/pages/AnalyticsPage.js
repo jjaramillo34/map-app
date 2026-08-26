@@ -72,6 +72,28 @@ const AnalyticsPage = () => {
   const isMunicipioVisible = (name) =>
     !normalizedMunicipioQuery ||
     name.toLocaleLowerCase().includes(normalizedMunicipioQuery);
+  const visibleHeatmapMunicipios = analytics?.municipios.filter((municipio) =>
+    isMunicipioVisible(municipio.name)
+  ) || [];
+  const heatmapMetricLabels = {
+    customers: "Clientes solares",
+    penetration: "Penetración",
+    income: "Ingreso promedio",
+    growth: "Potencial de crecimiento",
+  };
+  const heatmapMetricValues = visibleHeatmapMunicipios.map((municipio) => {
+    if (selectedMetric === "penetration") return Number(municipio.penetrationRate) || 0;
+    if (selectedMetric === "income") return municipio.avgIncome || 0;
+    if (selectedMetric === "growth") {
+      return analytics?.predictions.find((prediction) => prediction.name === municipio.name)
+        ?.growthPotential || 0;
+    }
+    return municipio.customers;
+  });
+  const heatmapRange = {
+    min: Math.min(...heatmapMetricValues, 0),
+    max: Math.max(...heatmapMetricValues, 0),
+  };
   const comparisonMunicipios = comparisonNames
     .map((name) => analytics?.municipios.find((municipio) => municipio.name === name))
     .filter(Boolean);
@@ -1734,11 +1756,14 @@ const AnalyticsPage = () => {
                   </p>
                   
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar Métrica:</label>
+                    <label htmlFor="analytics-heatmap-metric" className="block text-sm font-medium text-gray-700 mb-2">
+                      Seleccionar Métrica:
+                    </label>
                     <select
+                      id="analytics-heatmap-metric"
                       value={selectedMetric}
                       onChange={(e) => setSelectedMetric(e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 sm:w-auto"
                     >
                       <option value="customers">Número de Clientes</option>
                       <option value="penetration">Tasa de Penetración</option>
@@ -1747,20 +1772,60 @@ const AnalyticsPage = () => {
                     </select>
                   </div>
 
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Municipios visibles</p>
+                      <p className="mt-1 text-2xl font-bold text-blue-950">{visibleHeatmapMunicipios.length}</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Clientes solares</p>
+                      <p className="mt-1 text-2xl font-bold text-emerald-950">
+                        {visibleHeatmapMunicipios
+                          .reduce((sum, municipio) => sum + municipio.customers, 0)
+                          .toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Métrica activa</p>
+                      <p className="mt-1 text-lg font-bold text-violet-950">{heatmapMetricLabels[selectedMetric]}</p>
+                    </div>
+                  </div>
+
                   <div className="bg-white rounded-xl p-6 border border-gray-200">
                     <div className="relative h-[600px] rounded-lg overflow-hidden border border-gray-200">
                       <div ref={heatmapMapContainer} className="absolute inset-0 w-full h-full" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {analytics.municipios
-                      .filter((m) => isMunicipioVisible(m.name))
+                  <div className="rounded-xl border border-gray-200 bg-white p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">Leyenda de intensidad</p>
+                        <p className="text-xs text-gray-500">
+                          Los puntos representan centros aproximados por municipio; los límites municipales no están disponibles en este dataset.
+                        </p>
+                      </div>
+                      <div className="flex min-w-[220px] items-center gap-2">
+                        <span className="text-xs text-gray-500">{heatmapRange.min.toLocaleString()}</span>
+                        <div
+                          className="h-3 flex-1 rounded-full bg-gradient-to-r from-[#3288bd] via-[#fee08b] to-[#d53e4f]"
+                          aria-label={`Escala de ${heatmapMetricLabels[selectedMetric]}`}
+                          role="img"
+                        />
+                        <span className="text-xs text-gray-500">{heatmapRange.max.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                    {visibleHeatmapMunicipios
                       .sort((a, b) => {
                         if (selectedMetric === "customers") return b.customers - a.customers;
                         if (selectedMetric === "penetration") return parseFloat(b.penetrationRate) - parseFloat(a.penetrationRate);
                         if (selectedMetric === "income") return b.avgIncome - a.avgIncome;
-                        return 0;
+                        const aGrowth = analytics.predictions.find((prediction) => prediction.name === a.name)?.growthPotential || 0;
+                        const bGrowth = analytics.predictions.find((prediction) => prediction.name === b.name)?.growthPotential || 0;
+                        return bGrowth - aGrowth;
                       })
                       .slice(0, 8)
                       .map((m, idx) => (
@@ -1777,7 +1842,13 @@ const AnalyticsPage = () => {
                               <p className="text-gray-700">Ingreso: <span className="font-bold">${m.avgIncome.toLocaleString()}</span></p>
                             )}
                             {selectedMetric === "growth" && (
-                              <p className="text-gray-700">Potencial: <span className="font-bold text-green-600">Alto</span></p>
+                              <p className="text-gray-700">
+                                Potencial:{" "}
+                                <span className="font-bold text-green-600">
+                                  {(analytics.predictions.find((prediction) => prediction.name === m.name)
+                                    ?.growthPotential || 0).toLocaleString()}
+                                </span>
+                              </p>
                             )}
                           </div>
                         </div>
