@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { 
   BarChart3, TrendingUp, DollarSign, MapPin, 
   Brain, Target, AlertCircle, PieChart, Activity,
@@ -69,9 +69,12 @@ const AnalyticsPage = () => {
     group.tabs.some((tab) => tab.id === activeTab)
   );
   const normalizedMunicipioQuery = municipioQuery.trim().toLocaleLowerCase();
-  const isMunicipioVisible = (name) =>
-    !normalizedMunicipioQuery ||
-    name.toLocaleLowerCase().includes(normalizedMunicipioQuery);
+  const isMunicipioVisible = useCallback(
+    (name) =>
+      !normalizedMunicipioQuery ||
+      name.toLocaleLowerCase().includes(normalizedMunicipioQuery),
+    [normalizedMunicipioQuery]
+  );
   const comparisonMunicipios = comparisonNames
     .map((name) => analytics?.municipios.find((municipio) => municipio.name === name))
     .filter(Boolean);
@@ -1041,7 +1044,7 @@ const AnalyticsPage = () => {
         heatmapMap.current.off("load", updateHeatmap);
       }
     };
-  }, [activeTab, analytics, selectedMetric, municipioQuery]);
+  }, [activeTab, analytics, selectedMetric, municipioQuery, isMunicipioVisible]);
 
   if (loading) {
     return (
