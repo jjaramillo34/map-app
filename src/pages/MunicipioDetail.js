@@ -202,164 +202,182 @@ const MunicipioDetail = () => {
   useEffect(() => {
     if (!mapContainer.current || !municipioData || map.current) return;
 
-    // Initialize map centered on municipality
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/light-v10",
-      center: [municipioData.center.lng, municipioData.center.lat],
-      zoom: 12,
-      bearing: 0,
-      pitch: 0,
-    });
+    setMapStatus("loading");
+    let mapLoaded = false;
+    let mapLoadTimeout;
 
-    // Add controls
-    map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
-    map.current.addControl(new mapboxgl.FullscreenControl(), "top-right");
+    try {
+      if (!mapboxgl.accessToken) {
+        setMapStatus("error");
+        return undefined;
+      }
 
-    // Add geolocation control
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true,
-        },
-        trackUserLocation: true,
-        showAccuracyCircle: false,
-      }),
-      "top-right"
-    );
-
-    // Add data when map loads
-    map.current.on("load", () => {
-      if (!municipioData || !municipioData.features) return;
-
-      // Create filtered GeoJSON for this municipality
-      const filteredGeoJson = {
-        type: "FeatureCollection",
-        features: municipioData.features,
-      };
-
-      // Add source
-      map.current.addSource("municipio-data", {
-        type: "geojson",
-        data: filteredGeoJson,
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 50,
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: "mapbox://styles/mapbox/light-v10",
+        center: [municipioData.center.lng, municipioData.center.lat],
+        zoom: 12,
+        bearing: 0,
+        pitch: 0,
       });
 
-      // Add cluster layer
-      map.current.addLayer({
-        id: "municipio-clusters",
-        type: "circle",
-        source: "municipio-data",
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": [
-            "step",
-            ["get", "point_count"],
-            "#51bbd6",
-            100,
-            "#1F4298",
-            750,
-            "#FF6800",
-          ],
-          "circle-radius": [
-            "step",
-            ["get", "point_count"],
-            20,
-            100,
-            30,
-            750,
-            40,
-          ],
-        },
-      });
+      map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+      map.current.addControl(new mapboxgl.FullscreenControl(), "top-right");
+      map.current.addControl(
+        new mapboxgl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true,
+          },
+          trackUserLocation: true,
+          showAccuracyCircle: false,
+        }),
+        "top-right"
+      );
 
-      // Add cluster count labels
-      map.current.addLayer({
-        id: "municipio-cluster-count",
-        type: "symbol",
-        source: "municipio-data",
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": "{point_count_abbreviated}",
-          "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
-          "text-size": 12,
-        },
-      });
+      map.current.on("load", () => {
+        try {
+          if (!municipioData.features) return;
 
-      // Add unclustered points
-      map.current.addLayer({
-        id: "municipio-points",
-        type: "circle",
-        source: "municipio-data",
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-color": "#FF6800",
-          "circle-radius": 6,
-          "circle-stroke-width": 1,
-          "circle-stroke-color": "#fff",
-        },
-      });
+          const filteredGeoJson = {
+            type: "FeatureCollection",
+            features: municipioData.features,
+          };
 
-      // Add popups
-      map.current.on("click", "municipio-clusters", (e) => {
-        const features = map.current.queryRenderedFeatures(e.point, {
-          layers: ["municipio-clusters"],
-        });
-        const clusterId = features[0].properties.cluster_id;
-        const source = map.current.getSource("municipio-data");
-        
-        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-          if (err) return;
-          
-          map.current.easeTo({
-            center: features[0].geometry.coordinates,
-            zoom: zoom,
+          map.current.addSource("municipio-data", {
+            type: "geojson",
+            data: filteredGeoJson,
+            cluster: true,
+            clusterMaxZoom: 14,
+            clusterRadius: 50,
           });
-        });
+
+          map.current.addLayer({
+            id: "municipio-clusters",
+            type: "circle",
+            source: "municipio-data",
+            filter: ["has", "point_count"],
+            paint: {
+              "circle-color": [
+                "step",
+                ["get", "point_count"],
+                "#51bbd6",
+                100,
+                "#1F4298",
+                750,
+                "#FF6800",
+              ],
+              "circle-radius": [
+                "step",
+                ["get", "point_count"],
+                20,
+                100,
+                30,
+                750,
+                40,
+              ],
+            },
+          });
+
+          map.current.addLayer({
+            id: "municipio-cluster-count",
+            type: "symbol",
+            source: "municipio-data",
+            filter: ["has", "point_count"],
+            layout: {
+              "text-field": "{point_count_abbreviated}",
+              "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+              "text-size": 12,
+            },
+          });
+
+          map.current.addLayer({
+            id: "municipio-points",
+            type: "circle",
+            source: "municipio-data",
+            filter: ["!", ["has", "point_count"]],
+            paint: {
+              "circle-color": "#FF6800",
+              "circle-radius": 6,
+              "circle-stroke-width": 1,
+              "circle-stroke-color": "#fff",
+            },
+          });
+
+          map.current.on("click", "municipio-clusters", (e) => {
+            const features = map.current.queryRenderedFeatures(e.point, {
+              layers: ["municipio-clusters"],
+            });
+            const clusterId = features[0].properties.cluster_id;
+            const source = map.current.getSource("municipio-data");
+
+            source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+              if (err) return;
+
+              map.current.easeTo({
+                center: features[0].geometry.coordinates,
+                zoom,
+              });
+            });
+          });
+
+          map.current.on("click", "municipio-points", (e) => {
+            const props = e.features[0].properties;
+            new mapboxgl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(`
+                <div class="p-3">
+                  <h3 class="font-bold text-lg mb-2">${municipioData.name}</h3>
+                  <div class="space-y-1 text-sm">
+                    ${props.Income ? `<p><strong>Ingreso:</strong> $${parseInt(props.Income).toLocaleString()}</p>` : ""}
+                    ${props.TotalPop ? `<p><strong>Población:</strong> ${parseInt(props.TotalPop).toLocaleString()}</p>` : ""}
+                    ${props.City ? `<p><strong>Ciudad:</strong> ${props.City}</p>` : ""}
+                  </div>
+                </div>
+              `)
+              .addTo(map.current);
+          });
+
+          map.current.on("mouseenter", "municipio-clusters", () => {
+            map.current.getCanvas().style.cursor = "pointer";
+          });
+          map.current.on("mouseleave", "municipio-clusters", () => {
+            map.current.getCanvas().style.cursor = "";
+          });
+          map.current.on("mouseenter", "municipio-points", () => {
+            map.current.getCanvas().style.cursor = "pointer";
+          });
+          map.current.on("mouseleave", "municipio-points", () => {
+            map.current.getCanvas().style.cursor = "";
+          });
+
+          mapLoaded = true;
+          window.clearTimeout(mapLoadTimeout);
+          setMapStatus("ready");
+        } catch (error) {
+          console.error("[MunicipioDetail] Error configuring map:", error);
+          setMapStatus("error");
+        }
       });
 
-      // Popup for unclustered points
-      map.current.on("click", "municipio-points", (e) => {
-        const props = e.features[0].properties;
-        new mapboxgl.Popup()
-          .setLngLat(e.lngLat)
-          .setHTML(`
-            <div class="p-3">
-              <h3 class="font-bold text-lg mb-2">${municipioData.name}</h3>
-              <div class="space-y-1 text-sm">
-                ${props.Income ? `<p><strong>Ingreso:</strong> $${parseInt(props.Income).toLocaleString()}</p>` : ""}
-                ${props.TotalPop ? `<p><strong>Población:</strong> ${parseInt(props.TotalPop).toLocaleString()}</p>` : ""}
-                ${props.City ? `<p><strong>Ciudad:</strong> ${props.City}</p>` : ""}
-              </div>
-            </div>
-          `)
-          .addTo(map.current);
+      map.current.on("error", () => {
+        if (!mapLoaded) {
+          window.clearTimeout(mapLoadTimeout);
+          setMapStatus("error");
+        }
       });
 
-      // Cursor changes
-      map.current.on("mouseenter", "municipio-clusters", () => {
-        map.current.getCanvas().style.cursor = "pointer";
-      });
-      map.current.on("mouseleave", "municipio-clusters", () => {
-        map.current.getCanvas().style.cursor = "";
-      });
-      map.current.on("mouseenter", "municipio-points", () => {
-        map.current.getCanvas().style.cursor = "pointer";
-      });
-      map.current.on("mouseleave", "municipio-points", () => {
-        map.current.getCanvas().style.cursor = "";
-      });
-
-      setMapStatus("ready");
-    });
-
-    map.current.on("error", () => {
+      mapLoadTimeout = window.setTimeout(() => {
+        if (!mapLoaded) {
+          setMapStatus("error");
+        }
+      }, 10000);
+    } catch (error) {
+      console.error("[MunicipioDetail] Error initializing map:", error);
       setMapStatus("error");
-    });
+    }
 
     return () => {
+      window.clearTimeout(mapLoadTimeout);
       if (map.current) {
         map.current.remove();
         map.current = null;
