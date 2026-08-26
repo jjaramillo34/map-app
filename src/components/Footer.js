@@ -81,7 +81,7 @@ const Footer = () => {
             </div>
             <div className="flex items-center gap-3">
               <a
-                href="https://github.com"
+                href="https://github.com/jjaramillo34/map-app"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm text-gray-300 hover:text-white transition-all border border-gray-700 hover:border-primary-400"
@@ -128,4 +128,3 @@ const Footer = () => {
 };
 
 export default Footer;
-

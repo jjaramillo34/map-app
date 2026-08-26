@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Map, Building2, Layers3, Flame, Globe, BarChart3, Search, Brain } from "lucide-react";
+import { Map, Building2, Layers3, Flame, Globe, BarChart3, Search, Brain, ArrowRight, CheckCircle2 } from "lucide-react";
 import Layout from "../components/Layout";
 import MunicipalityAnalytics from "../components/MunicipalityAnalytics";
 
@@ -10,40 +10,46 @@ const LandingPage = () => {
       <div className="relative min-h-screen bg-gradient-to-br from-gray-50 via-white to-primary-50">
         {/* Hero Section */}
         <div className="relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-24">
-            <div className="text-center">
+          <div className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-primary-100/60 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-40 -left-20 h-80 w-80 rounded-full bg-blue-100/50 blur-3xl" />
+          <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 md:px-8 md:py-24 lg:grid-cols-[1.05fr_.95fr]">
+            <div>
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white/80 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-primary-700 shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                Datos abiertos de Puerto Rico
+              </div>
               {/* Main Heading */}
-              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 tracking-tight">
-                Power Solar Map
+              <h1 className="mb-6 max-w-2xl text-4xl font-bold tracking-tight text-gray-900 md:text-6xl">
+                Entiende dónde crece la energía solar.
               </h1>
-              <p className="text-xl md:text-2xl text-gray-600 mb-4 max-w-3xl mx-auto">
-                Visualización Interactiva de Clientes de Energía Solar
+              <p className="mb-4 max-w-xl text-xl text-gray-600 md:text-2xl">
+                Visualización interactiva de clientes solares en Puerto Rico.
               </p>
-              <p className="text-lg text-gray-500 mb-12 max-w-2xl mx-auto">
-                Explore los datos de energía solar en Puerto Rico de manera intuitiva.
-                Descubra la distribución geográfica de clientes solares en toda la isla.
+              <p className="mb-10 max-w-xl text-base leading-relaxed text-gray-500 md:text-lg">
+                Explora concentraciones por municipio, descubre patrones geográficos y convierte datos complejos en decisiones más claras.
               </p>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+              <div className="mb-8 flex flex-col items-start gap-4 sm:flex-row">
                 <Link
                   to="/mapa"
                   className="px-8 py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 flex items-center gap-2"
                 >
                   <Map className="w-5 h-5" />
-                  Ver Mapa Interactivo
+                  Ver el mapa
+                  <ArrowRight className="h-5 w-5" />
                 </Link>
                 <Link
                   to="/municipios"
                   className="px-8 py-4 bg-white text-primary-600 border-2 border-primary-600 rounded-xl font-semibold text-lg shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 flex items-center gap-2"
                 >
                   <Building2 className="w-5 h-5" />
-                  Explorar Municipios
+                  Explorar municipios
                 </Link>
               </div>
 
               {/* Map Type Quick Links */}
-              <div className="flex flex-wrap justify-center gap-3 mt-4">
+              <div className="mt-4 flex flex-wrap gap-3">
                 <Link
                   to="/cluster"
                   className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium text-sm shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2"
@@ -72,6 +78,47 @@ const LandingPage = () => {
                   <Brain className="w-4 h-4" />
                   Analytics ML
                 </Link>
+              </div>
+            </div>
+            <div className="relative mx-auto w-full max-w-md lg:ml-auto">
+              <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-primary-200/50 to-blue-100/40 blur-2xl" />
+              <div className="relative rounded-3xl border border-white bg-white/90 p-5 shadow-2xl backdrop-blur-md">
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-primary-600">Vista general</p>
+                    <h2 className="mt-1 text-lg font-bold text-gray-900">Actividad solar por zona</h2>
+                  </div>
+                  <Map className="h-6 w-6 text-primary-500" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-primary-50 p-4">
+                    <p className="text-xs font-medium text-gray-500">Municipios</p>
+                    <p className="mt-1 text-2xl font-bold text-gray-900">78</p>
+                    <p className="mt-1 text-xs text-primary-700">en todo Puerto Rico</p>
+                  </div>
+                  <div className="rounded-2xl bg-emerald-50 p-4">
+                    <p className="text-xs font-medium text-gray-500">Clientes</p>
+                    <p className="mt-1 text-2xl font-bold text-gray-900">13K+</p>
+                    <p className="mt-1 text-xs text-emerald-700">en el conjunto de datos</p>
+                  </div>
+                </div>
+                <div className="mt-4 rounded-2xl bg-gray-50 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-600">Distribución visual</span>
+                    <span className="text-xs text-gray-400">baja → alta</span>
+                  </div>
+                  <div className="flex h-3 gap-1 overflow-hidden rounded-full">
+                    {["bg-blue-100", "bg-cyan-300", "bg-emerald-400", "bg-lime-400", "bg-orange-400", "bg-orange-600"].map((color) => <span key={color} className={`flex-1 ${color}`} />)}
+                  </div>
+                  <div className="mt-4 space-y-2 text-sm">
+                    {["Mapa interactivo", "Filtros por municipio", "Analytics avanzado"].map((item) => (
+                      <div key={item} className="flex items-center gap-2 text-gray-600">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -182,4 +229,3 @@ const LandingPage = () => {
 };
 
 export default LandingPage;
-
