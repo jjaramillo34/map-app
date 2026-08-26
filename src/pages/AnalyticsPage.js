@@ -17,14 +17,78 @@ import geoJsonData from "../data/geojson.geojson";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
+const analyticsNavigation = [
+  {
+    id: "explore",
+    label: "Explorar datos",
+    description: "Gráficos y distribución geográfica",
+    tabs: [
+      { id: "charts", label: "Gráficos", icon: PieChart },
+      { id: "heatmap", label: "Heatmap", icon: MapIcon },
+      { id: "correlations", label: "Correlaciones", icon: Activity },
+      { id: "regional", label: "Análisis Regional", icon: Globe },
+    ],
+  },
+  {
+    id: "models",
+    label: "Modelos predictivos",
+    description: "Machine Learning y proyecciones",
+    tabs: [
+      { id: "ml", label: "Machine Learning", icon: Brain },
+      { id: "neural", label: "Red Neuronal", icon: Brain },
+      { id: "decision", label: "Árbol Decisión", icon: TreePine },
+      { id: "timeseries", label: "Series Temporales", icon: TrendingUp },
+      { id: "predictions", label: "Predicciones", icon: Target },
+    ],
+  },
+  {
+    id: "insights",
+    label: "Insights",
+    description: "Hallazgos y segmentación",
+    tabs: [
+      { id: "anomalies", label: "Anomalías", icon: AlertCircle },
+      { id: "segments", label: "Segmentación", icon: Layers3 },
+    ],
+  },
+];
+
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [openMenu, setOpenMenu] = useState(null);
   const [selectedMetric, setSelectedMetric] = useState("customers");
   const heatmapMapContainer = useRef(null);
   const heatmapMap = useRef(null);
+  const navigationRef = useRef(null);
+
+  const activeGroup = analyticsNavigation.find((group) =>
+    group.tabs.some((tab) => tab.id === activeTab)
+  );
+
+  useEffect(() => {
+    if (!openMenu) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!navigationRef.current?.contains(event.target)) {
+        setOpenMenu(null);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setOpenMenu(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openMenu]);
 
   useEffect(() => {
     const analyzeData = async () => {
@@ -1018,49 +1082,104 @@ const AnalyticsPage = () => {
 
           {/* Tabs */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 mb-8">
-            <div className="border-b border-gray-200">
+            <div ref={navigationRef} className="border-b border-gray-200">
               <nav
                 aria-label="Secciones de analytics"
-                role="tablist"
-                className="flex min-w-max -mb-px gap-1 overflow-x-auto px-4"
+                className="flex flex-wrap items-center gap-2 px-4 py-3"
               >
-                {[
-                  { id: "overview", label: "Resumen", icon: BarChart3 },
-                  { id: "charts", label: "Gráficos", icon: PieChart },
-                  { id: "ml", label: "Machine Learning", icon: Brain },
-                  { id: "neural", label: "Red Neuronal", icon: Brain },
-                  { id: "decision", label: "Árbol Decisión", icon: TreePine },
-                  { id: "timeseries", label: "Series Temporales", icon: TrendingUp },
-                  { id: "predictions", label: "Predicciones", icon: Target },
-                  { id: "heatmap", label: "Heatmap", icon: MapIcon },
-                  { id: "correlations", label: "Correlaciones", icon: Activity },
-                  { id: "anomalies", label: "Anomalías", icon: AlertCircle },
-                  { id: "regional", label: "Análisis Regional", icon: Globe },
-                  { id: "segments", label: "Segmentación", icon: Layers3 },
-                  { id: "export", label: "Exportar", icon: Download },
-                ].map(tab => {
-                  const Icon = tab.icon;
+                <button
+                  onClick={() => {
+                    setActiveTab("overview");
+                    setOpenMenu(null);
+                  }}
+                  role="tab"
+                  aria-selected={activeTab === "overview"}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    activeTab === "overview"
+                      ? "bg-primary-50 text-primary-700"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  }`}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Resumen
+                </button>
+
+                {analyticsNavigation.map((group) => {
+                  const isOpen = openMenu === group.id;
+                  const isActive = activeGroup?.id === group.id;
+
                   return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      role="tab"
-                      aria-selected={activeTab === tab.id}
-                      className={`flex items-center gap-2 whitespace-nowrap px-4 py-4 text-sm font-medium border-b-2 transition-colors ${
-                        activeTab === tab.id
-                          ? "border-primary-500 text-primary-600"
-                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {tab.label}
-                    </button>
+                    <div key={group.id} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setOpenMenu(isOpen ? null : group.id)}
+                        aria-expanded={isOpen}
+                        aria-haspopup="menu"
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                          isActive
+                            ? "bg-primary-50 text-primary-700"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        }`}
+                      >
+                        {group.label}
+                        <span className={`text-xs transition-transform ${isOpen ? "rotate-180" : ""}`}>⌄</span>
+                      </button>
+
+                      {isOpen && (
+                        <div
+                          role="menu"
+                          aria-label={group.label}
+                          className="absolute left-0 top-full z-20 mt-2 min-w-64 rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
+                        >
+                          <p className="px-3 pb-2 pt-1 text-xs text-gray-500">{group.description}</p>
+                          {group.tabs.map((tab) => {
+                            const Icon = tab.icon;
+                            return (
+                              <button
+                                key={tab.id}
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  setActiveTab(tab.id);
+                                  setOpenMenu(null);
+                                }}
+                                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
+                                  activeTab === tab.id
+                                    ? "bg-primary-50 font-semibold text-primary-700"
+                                    : "text-gray-700 hover:bg-gray-50"
+                                }`}
+                              >
+                                <Icon className="h-4 w-4 shrink-0" />
+                                {tab.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
+
+                <button
+                  onClick={() => {
+                    setActiveTab("export");
+                    setOpenMenu(null);
+                  }}
+                  role="tab"
+                  aria-selected={activeTab === "export"}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    activeTab === "export"
+                      ? "bg-primary-50 text-primary-700"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  }`}
+                >
+                  <Download className="h-4 w-4" />
+                  Exportar
+                </button>
               </nav>
             </div>
 
-            <div className="p-6" role="tabpanel" aria-label="Contenido de analytics">
+            <div className="p-6" aria-live="polite">
               {/* Overview Tab */}
               {activeTab === "overview" && (
                 <div className="space-y-6">
