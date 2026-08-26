@@ -10,6 +10,20 @@
       sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background: #f8fafc;
+    color: #17242b;
+  }
+
+  button,
+  a,
+  input,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 3px solid rgba(13, 128, 106, 0.35);
+    outline-offset: 2px;
   }
 }
 
