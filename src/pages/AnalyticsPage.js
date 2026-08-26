@@ -60,6 +60,7 @@ const AnalyticsPage = () => {
   const [openMenu, setOpenMenu] = useState(null);
   const [selectedMetric, setSelectedMetric] = useState("customers");
   const [municipioQuery, setMunicipioQuery] = useState("");
+  const [comparisonNames, setComparisonNames] = useState(["", ""]);
   const heatmapMapContainer = useRef(null);
   const heatmapMap = useRef(null);
   const navigationRef = useRef(null);
@@ -71,6 +72,12 @@ const AnalyticsPage = () => {
   const isMunicipioVisible = (name) =>
     !normalizedMunicipioQuery ||
     name.toLocaleLowerCase().includes(normalizedMunicipioQuery);
+  const comparisonMunicipios = comparisonNames
+    .map((name) => analytics?.municipios.find((municipio) => municipio.name === name))
+    .filter(Boolean);
+  const comparisonOptions = analytics?.municipios.filter((municipio) =>
+    isMunicipioVisible(municipio.name) || comparisonNames.includes(municipio.name)
+  ) || [];
 
   useEffect(() => {
     if (!openMenu) return undefined;
@@ -1146,6 +1153,22 @@ const AnalyticsPage = () => {
                   <BarChart3 className="h-4 w-4" />
                   Resumen
                 </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("compare");
+                    setOpenMenu(null);
+                  }}
+                  role="tab"
+                  aria-selected={activeTab === "compare"}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    activeTab === "compare"
+                      ? "bg-primary-50 text-primary-700"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  }`}
+                >
+                  <Activity className="h-4 w-4" />
+                  Comparar
+                </button>
 
                 {analyticsNavigation.map((group) => {
                   const isOpen = openMenu === group.id;
@@ -1223,6 +1246,106 @@ const AnalyticsPage = () => {
             </div>
 
             <div className="p-6" aria-live="polite">
+              {/* Comparison Tab */}
+              {activeTab === "compare" && (
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <Activity className="h-6 w-6 text-primary-600" />
+                      <h2 className="text-2xl font-bold text-gray-900">Comparar municipios</h2>
+                    </div>
+                    <p className="mt-2 text-gray-600">
+                      Selecciona dos municipios para revisar sus indicadores principales lado a lado.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {comparisonNames.map((name, index) => {
+                      const otherName = comparisonNames[index === 0 ? 1 : 0];
+                      return (
+                        <div key={index}>
+                          <label
+                            htmlFor={`comparison-municipio-${index}`}
+                            className="mb-2 block text-sm font-semibold text-gray-700"
+                          >
+                            Municipio {index + 1}
+                          </label>
+                          <select
+                            id={`comparison-municipio-${index}`}
+                            value={name}
+                            onChange={(event) => {
+                              const nextNames = [...comparisonNames];
+                              nextNames[index] = event.target.value;
+                              setComparisonNames(nextNames);
+                            }}
+                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                          >
+                            <option value="">Selecciona un municipio</option>
+                            {comparisonOptions
+                              .filter((municipio) => municipio.name === name || municipio.name !== otherName)
+                              .map((municipio) => (
+                                <option key={municipio.name} value={municipio.name}>
+                                  {municipio.name}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {comparisonMunicipios.length === 2 ? (
+                    <div className="overflow-x-auto rounded-xl border border-gray-200">
+                      <table className="w-full min-w-[520px]">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              Indicador
+                            </th>
+                            {comparisonMunicipios.map((municipio) => (
+                              <th
+                                key={municipio.name}
+                                className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500"
+                              >
+                                {municipio.name}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 text-sm">
+                          {[
+                            ["Clientes solares", (municipio) => municipio.customers.toLocaleString()],
+                            ["Ingreso promedio", (municipio) => `$${municipio.avgIncome.toLocaleString()}`],
+                            ["Población promedio", (municipio) => municipio.avgPopulation.toLocaleString()],
+                            ["Penetración", (municipio) => `${municipio.penetrationRate}%`],
+                            ["Pobreza", (municipio) => `${municipio.avgPoverty}%`],
+                            ["Desempleo", (municipio) => `${municipio.avgUnemployment}%`],
+                            ["Profesionales", (municipio) => `${municipio.avgProfessional}%`],
+                          ].map(([label, formatValue]) => (
+                            <tr key={label}>
+                              <th className="px-4 py-3 text-left font-medium text-gray-700">{label}</th>
+                              {comparisonMunicipios.map((municipio) => (
+                                <td key={municipio.name} className="px-4 py-3 text-right font-semibold text-gray-900">
+                                  {formatValue(municipio)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
+                      <Activity className="mx-auto mb-3 h-8 w-8 text-gray-400" />
+                      <p className="font-semibold text-gray-800">Selecciona dos municipios</p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        La comparación aparecerá aquí cuando ambos campos estén completos.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Overview Tab */}
               {activeTab === "overview" && (
                 <div className="space-y-6">
