@@ -3,7 +3,7 @@ import {
   BarChart3, TrendingUp, DollarSign, MapPin, 
   Brain, Target, AlertCircle, PieChart, Activity,
   Zap, Globe, Layers3, Loader2,
-  Map as MapIcon, TreePine, Download
+  Map as MapIcon, TreePine, Download, Search, X
 } from "lucide-react";
 import { 
   LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell,
@@ -59,6 +59,7 @@ const AnalyticsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [openMenu, setOpenMenu] = useState(null);
   const [selectedMetric, setSelectedMetric] = useState("customers");
+  const [municipioQuery, setMunicipioQuery] = useState("");
   const heatmapMapContainer = useRef(null);
   const heatmapMap = useRef(null);
   const navigationRef = useRef(null);
@@ -66,6 +67,10 @@ const AnalyticsPage = () => {
   const activeGroup = analyticsNavigation.find((group) =>
     group.tabs.some((tab) => tab.id === activeTab)
   );
+  const normalizedMunicipioQuery = municipioQuery.trim().toLocaleLowerCase();
+  const isMunicipioVisible = (name) =>
+    !normalizedMunicipioQuery ||
+    name.toLocaleLowerCase().includes(normalizedMunicipioQuery);
 
   useEffect(() => {
     if (!openMenu) return undefined;
@@ -795,6 +800,7 @@ const AnalyticsPage = () => {
 
       // Prepare GeoJSON data based on selected metric
       const features = analytics.municipios
+        .filter((m) => isMunicipioVisible(m.name))
         .filter(m => m.coordinates && m.coordinates.length > 0)
         .map(m => {
           const avgLng = m.coordinates.reduce((sum, c) => sum + c.lng, 0) / m.coordinates.length;
@@ -1003,7 +1009,7 @@ const AnalyticsPage = () => {
         heatmapMap.current.off("load", updateHeatmap);
       }
     };
-  }, [activeTab, analytics, selectedMetric]);
+  }, [activeTab, analytics, selectedMetric, municipioQuery]);
 
   if (loading) {
     return (
@@ -1077,6 +1083,43 @@ const AnalyticsPage = () => {
                 <span className="text-2xl font-bold text-gray-900">${(analytics.summary.avgIncome / 1000).toFixed(0)}k</span>
               </div>
               <p className="text-sm text-gray-600">Ingreso Promedio</p>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="mb-8 rounded-xl border border-gray-100 bg-white p-4 shadow-lg">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="w-full md:max-w-xl">
+                <label htmlFor="analytics-municipio-search" className="mb-2 block text-sm font-semibold text-gray-800">
+                  Buscar municipio
+                </label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    id="analytics-municipio-search"
+                    type="search"
+                    value={municipioQuery}
+                    onChange={(event) => setMunicipioQuery(event.target.value)}
+                    placeholder="Ej. Adjuntas, Ponce o San Juan"
+                    className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-10 text-sm text-gray-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
+                  />
+                  {municipioQuery && (
+                    <button
+                      type="button"
+                      aria-label="Limpiar búsqueda de municipio"
+                      onClick={() => setMunicipioQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p className="text-sm text-gray-500">
+                {normalizedMunicipioQuery
+                  ? `${analytics.municipios.filter((municipio) => isMunicipioVisible(municipio.name)).length} municipios encontrados`
+                  : "Filtra rankings y tablas por nombre"}
+              </p>
             </div>
           </div>
 
@@ -1284,7 +1327,7 @@ const AnalyticsPage = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {analytics.predictions.map((m, idx) => (
+                        {analytics.predictions.filter((m) => isMunicipioVisible(m.name)).map((m, idx) => (
                           <tr key={idx} className="hover:bg-gray-50">
                             <td className="px-4 py-3 font-semibold text-gray-900">{m.name}</td>
                             <td className="px-4 py-3 text-right">{m.customers.toLocaleString()}</td>
@@ -1407,7 +1450,7 @@ const AnalyticsPage = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {analytics.neuralPredictions.map((m, idx) => (
+                        {analytics.neuralPredictions.filter((m) => isMunicipioVisible(m.name)).map((m, idx) => (
                           <tr key={idx} className="hover:bg-gray-50">
                             <td className="px-4 py-3 font-semibold text-gray-900">{m.name}</td>
                             <td className="px-4 py-3 text-right">{m.customers.toLocaleString()}</td>
@@ -1473,7 +1516,7 @@ const AnalyticsPage = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {analytics.decisionTree.classifications.slice(0, 20).map((m, idx) => (
+                        {analytics.decisionTree.classifications.filter((m) => isMunicipioVisible(m.name)).slice(0, 20).map((m, idx) => (
                           <tr key={idx} className="hover:bg-gray-50">
                             <td className="px-4 py-3 font-semibold text-gray-900">{m.name}</td>
                             <td className="px-4 py-3">
@@ -1541,7 +1584,7 @@ const AnalyticsPage = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {analytics.timeSeries.topGrowth.map((m, idx) => (
+                        {analytics.timeSeries.topGrowth.filter((m) => isMunicipioVisible(m.name)).map((m, idx) => (
                             <tr key={idx} className="hover:bg-gray-50">
                               <td className="px-4 py-3 font-semibold text-gray-900">{m.name}</td>
                               <td className="px-4 py-3 text-right">{m.customers.toLocaleString()}</td>
@@ -1589,6 +1632,7 @@ const AnalyticsPage = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {analytics.municipios
+                      .filter((m) => isMunicipioVisible(m.name))
                       .sort((a, b) => {
                         if (selectedMetric === "customers") return b.customers - a.customers;
                         if (selectedMetric === "penetration") return parseFloat(b.penetrationRate) - parseFloat(a.penetrationRate);
@@ -1697,7 +1741,7 @@ const AnalyticsPage = () => {
                     Municipios con patrones inusuales que requieren atención especial
                   </p>
                   <div className="space-y-4">
-                    {analytics.anomalies.map((m, idx) => (
+                    {analytics.anomalies.filter((m) => isMunicipioVisible(m.name)).map((m, idx) => (
                       <div key={idx} className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-6 border border-orange-200">
                         <div className="flex items-center justify-between mb-3">
                           <h3 className="text-xl font-bold text-gray-900">{m.name}</h3>
