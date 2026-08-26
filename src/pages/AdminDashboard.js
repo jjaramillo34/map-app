@@ -240,7 +240,7 @@ const AdminDashboard = () => {
         type: "error",
         text:
           error.message ||
-          "Error al generar contenido. Verifique REACT_APP_GEMINI_API_KEY.",
+          "Error al generar contenido. Verifique GEMINI_API_KEY.",
       });
     } finally {
       setGenerating(false);

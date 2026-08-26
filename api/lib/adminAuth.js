@@ -11,11 +11,7 @@ function getAdminUsername() {
 }
 
 function getAdminPasswordHash() {
-  return String(
-    process.env.ADMIN_PASSWORD_HASH ||
-      process.env.REACT_APP_ADMIN_PASSWORD_HASH ||
-      ""
-  ).trim();
+  return String(process.env.ADMIN_PASSWORD_HASH || "").trim();
 }
 
 function getSessionSecret() {
@@ -237,5 +233,7 @@ module.exports = {
   handleSession,
   handleLogout,
   getSessionFromRequest,
+  readJsonBody,
+  sendJson,
   SESSION_COOKIE,
 };

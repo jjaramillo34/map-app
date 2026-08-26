@@ -1,5 +1,6 @@
 const { MongoClient } = require("mongodb");
 const { handleLogin, handleSession, handleLogout, getSessionFromRequest } = require("../api/lib/adminAuth");
+const { handleGenerate } = require("../api/lib/gemini");
 
 const DB_NAME = "powersolarpr";
 const COLLECTION_NAME = "municipalities";
@@ -59,6 +60,7 @@ module.exports = function (app) {
   app.use("/api/admin/login", async (req, res) => handleLogin(req, res));
   app.use("/api/admin/session", async (req, res) => handleSession(req, res));
   app.use("/api/admin/logout", async (req, res) => handleLogout(req, res));
+  app.use("/api/admin/generate", async (req, res) => handleGenerate(req, res));
 
   app.use("/api/municipalities", async (req, res) => {
     try {
