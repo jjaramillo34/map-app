@@ -691,25 +691,46 @@ const AnalyticsPage = () => {
     if (!analytics) return;
 
     const doc = new jsPDF();
-    
+    const visibleMunicipios = analytics.municipios.filter((municipio) =>
+      isMunicipioVisible(municipio.name)
+    );
+    const visiblePredictions = analytics.predictions.filter((municipio) =>
+      isMunicipioVisible(municipio.name)
+    );
+    const average = (field) =>
+      visibleMunicipios.length
+        ? Math.round(
+            visibleMunicipios.reduce((sum, municipio) => sum + municipio[field], 0) /
+              visibleMunicipios.length
+          )
+        : 0;
+    const exportLabel = normalizedMunicipioQuery
+      ? `Filtro: ${municipioQuery}`
+      : "Todos los municipios";
+
     // Title
     doc.setFontSize(20);
     doc.text("Power Solar Map - Analytics Report", 14, 20);
     doc.setFontSize(12);
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
+    doc.text(exportLabel, 14, 37);
 
     // Summary
     doc.setFontSize(16);
-    doc.text("Summary", 14, 45);
+    doc.text("Summary", 14, 52);
     doc.setFontSize(10);
-    let yPos = 55;
-    doc.text(`Total Municipios: ${analytics.summary.totalMunicipios}`, 14, yPos);
+    let yPos = 62;
+    doc.text(`Municipios en el reporte: ${visibleMunicipios.length}`, 14, yPos);
     yPos += 7;
-    doc.text(`Total Clientes: ${analytics.summary.totalCustomers.toLocaleString()}`, 14, yPos);
+    doc.text(
+      `Total Clientes: ${visibleMunicipios.reduce((sum, municipio) => sum + municipio.customers, 0).toLocaleString()}`,
+      14,
+      yPos
+    );
     yPos += 7;
-    doc.text(`Penetración Promedio: ${analytics.summary.avgPenetration}%`, 14, yPos);
+    doc.text(`Penetración Promedio: ${average("penetrationRate")}%`, 14, yPos);
     yPos += 7;
-    doc.text(`Ingreso Promedio: $${analytics.summary.avgIncome.toLocaleString()}`, 14, yPos);
+    doc.text(`Ingreso Promedio: $${average("avgIncome").toLocaleString()}`, 14, yPos);
 
     // Top Predictions Table
     yPos += 15;
@@ -717,7 +738,7 @@ const AnalyticsPage = () => {
     doc.text("Top Growth Predictions", 14, yPos);
     yPos += 5;
 
-    const predictionsData = analytics.predictions.slice(0, 10).map(p => [
+    const predictionsData = visiblePredictions.slice(0, 10).map(p => [
       p.name,
       p.customers.toString(),
       p.predictedCustomers.toString(),
@@ -740,18 +761,22 @@ const AnalyticsPage = () => {
     if (!analytics) return;
 
     const headers = ["Municipio", "Clientes", "Ingreso Promedio", "Población", "Penetración %", "Categoría"];
-    const rows = analytics.decisionTree.classifications.map(m => [
-      m.name,
-      m.customers,
-      m.avgIncome,
-      m.avgPopulation,
-      m.penetrationRate,
-      m.category,
-    ]);
+    const rows = analytics.decisionTree.classifications
+      .filter((municipio) => isMunicipioVisible(municipio.name))
+      .map(m => [
+        m.name,
+        m.customers,
+        m.avgIncome,
+        m.avgPopulation,
+        m.penetrationRate,
+        m.category,
+      ]);
 
+    const escapeCsvValue = (value) => `"${String(value).replace(/"/g, '""')}"`;
     const csvContent = [
-      headers.join(","),
-      ...rows.map(row => row.join(","))
+      `# ${normalizedMunicipioQuery ? `Filtro: ${municipioQuery}` : "Todos los municipios"}`,
+      headers.map(escapeCsvValue).join(","),
+      ...rows.map(row => row.map(escapeCsvValue).join(","))
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
