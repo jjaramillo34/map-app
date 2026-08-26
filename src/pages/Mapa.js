@@ -3,6 +3,7 @@ import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-load
 import geoJson from "../data/geojson.geojson";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import Layout from "../components/Layout";
+import { Copy, LocateFixed, MapPin, RotateCcw } from "lucide-react";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -18,14 +19,17 @@ export default function Mapa() {
   const [data] = useState(geoJson);
 
   // get the user's current location
-  const [currentLocation] = useState(null);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   // fly to the user's current location
   const flytoLocation = () => {
-    map.current.flyTo({
-      center: [currentLocation?.lng, currentLocation?.lat],
-      zoom: 14,
-    });
+    if (map.current && currentLocation) {
+      map.current.flyTo({
+        center: [currentLocation.lng, currentLocation.lat],
+        zoom: 14,
+      });
+    }
   };
 
   // set the user's current location
@@ -49,7 +53,7 @@ export default function Mapa() {
       var layers = map.current.getStyle().layers;
       var labelLayerId = layers.find(function (layer) {
         return layer.type === "symbol" && layer.layout["text-field"];
-      }).id;
+      })?.id;
 
       map.current.addLayer(
         {
@@ -91,16 +95,20 @@ export default function Mapa() {
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
     // add a geolocation control to the map
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({
+    const geolocate = new mapboxgl.GeolocateControl({
         positionOptions: {
           enableHighAccuracy: true,
         },
         trackUserLocation: true,
         showAccuracyCircle: false,
-      }),
+      });
+    map.current.addControl(
+      geolocate,
       "top-right"
     );
+    geolocate.on("geolocate", ({ coords }) => {
+      setCurrentLocation({ lng: coords.longitude, lat: coords.latitude });
+    });
 
     // add the geocoder to the map
     map.current.addControl(
@@ -212,29 +220,53 @@ export default function Mapa() {
       setLat(map.current.getCenter().lat.toFixed(6));
       setZoom(map.current.getZoom().toFixed(0));
     });
-  });
+    return () => {
+      map.current?.remove();
+      map.current = null;
+    };
+  }, []);
 
   // copy the longitude and latitude to the clipboard
   const copyLocation = () => {
-    navigator.clipboard.writeText(
-      `Longitude: ${lng} | Latitude: ${lat} | Zoom: ${zoom}`
-    );
-    // show a message to the user that the location was copied
-    navigator.clipboard.readText().then((text) => {
-      alert("Location copied to the clipboard: " + text);
-    });
+    navigator.clipboard.writeText(`Longitude: ${lng} | Latitude: ${lat} | Zoom: ${zoom}`);
+    setIsCopied(true);
+    window.setTimeout(() => setIsCopied(false), 1800);
+  };
+
+  const resetView = () => {
+    map.current?.flyTo({ center: [-66.5901, 18.2208], zoom: 9, pitch: 0, bearing: 0 });
   };
 
   return (
     <Layout showFooter={false}>
-      <div className="relative w-full h-full overflow-hidden" style={{ height: "calc(100vh - 80px)" }}>
+      <div className="relative h-full w-full overflow-hidden" style={{ height: "calc(100vh - 80px)" }}>
         {/* Map Container */}
-        <div className="absolute top-0 left-0 w-full h-full z-[1]" ref={mapContainer} />
+        <div className="absolute left-0 top-0 z-[1] h-full w-full" ref={mapContainer} />
+
+        <div className="absolute left-4 top-4 z-10 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/60 bg-white/90 p-4 shadow-xl backdrop-blur-md md:left-8 md:top-8">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-primary-100 p-2 text-primary-700">
+              <MapPin className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-primary-700">Power Solar Map</p>
+              <h1 className="mt-1 text-lg font-bold text-gray-900">Clientes solares en Puerto Rico</h1>
+              <p className="mt-1 text-xs text-gray-600">Explora concentraciones y detalles por ubicación.</p>
+            </div>
+          </div>
+          <div className="mt-3 flex gap-2 border-t border-gray-200 pt-3">
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-600"><span className="h-2.5 w-2.5 rounded-full bg-[#51bbd6]" />Menor concentración</span>
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-600"><span className="h-2.5 w-2.5 rounded-full bg-[#ff6800]" />Mayor concentración</span>
+          </div>
+        </div>
 
         {/* Info Panel */}
         <div className="absolute bottom-4 md:bottom-8 left-4 md:left-8 z-10 bg-white/98 backdrop-blur-md rounded-2xl shadow-2xl min-w-[280px] overflow-hidden border border-black/5 md:max-w-none max-w-[calc(100vw-2rem)]">
-          <div className="px-4 py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white">
-            <h3 className="m-0 text-base font-semibold tracking-wide">Map Information</h3>
+          <div className="flex items-center justify-between bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-4 text-white">
+            <h2 className="m-0 text-base font-semibold tracking-wide">Ubicación del mapa</h2>
+            <button onClick={resetView} title="Restablecer vista" aria-label="Restablecer vista" className="rounded-lg p-1.5 hover:bg-white/20">
+              <RotateCcw className="h-4 w-4" />
+            </button>
           </div>
           <div className="p-5">
             <div className="flex justify-between items-center py-3 border-b border-black/5 last:border-b-0 last:mb-3">
@@ -251,14 +283,16 @@ export default function Mapa() {
             </div>
             <button
               onClick={copyLocation}
-              title="Copy location"
+              title="Copiar ubicación"
+              aria-label="Copiar ubicación"
               className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white border-none rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 mt-2 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary-500/40 active:translate-y-0"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M4 2C4 1.44772 4.44772 1 5 1H11C11.5523 1 12 1.44772 12 2V6H13C13.5523 6 14 6.44772 14 7V13C14 13.5523 13.5523 14 13 14H7C6.44772 14 6 13.5523 6 13V12H5C4.44772 12 4 11.5523 4 11V2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M12 6H7C6.44772 6 6 6.44772 6 7V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Copy
+              <Copy className="h-4 w-4" />
+              {isCopied ? "Copiado" : "Copiar ubicación"}
             </button>
           </div>
         </div>
@@ -270,11 +304,8 @@ export default function Mapa() {
             title="Fly to my location"
             className="absolute bottom-4 md:bottom-8 right-4 md:right-8 z-10 flex items-center gap-2 py-3.5 px-6 bg-white/98 backdrop-blur-md border border-black/5 rounded-xl text-sm md:text-base font-semibold text-gray-900 cursor-pointer transition-all duration-200 shadow-lg hover:-translate-y-0.5 hover:shadow-xl hover:bg-white active:translate-y-0"
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary-500">
-              <path d="M10 2C10 2 4 6 4 10C4 12.5 6.5 15 10 15C13.5 15 16 12.5 16 10C16 6 10 2 10 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/>
-            </svg>
-            My Location
+            <LocateFixed className="h-5 w-5 text-primary-500" />
+            Mi ubicación
           </button>
         )}
       </div>
