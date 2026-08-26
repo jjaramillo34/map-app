@@ -75,6 +75,28 @@ const AnalyticsPage = () => {
       name.toLocaleLowerCase().includes(normalizedMunicipioQuery),
     [normalizedMunicipioQuery]
   );
+  const visibleHeatmapMunicipios = analytics?.municipios.filter((municipio) =>
+    isMunicipioVisible(municipio.name)
+  ) || [];
+  const heatmapMetricLabels = {
+    customers: "Clientes solares",
+    penetration: "Penetración",
+    income: "Ingreso promedio",
+    growth: "Potencial de crecimiento",
+  };
+  const heatmapMetricValues = visibleHeatmapMunicipios.map((municipio) => {
+    if (selectedMetric === "penetration") return Number(municipio.penetrationRate) || 0;
+    if (selectedMetric === "income") return municipio.avgIncome || 0;
+    if (selectedMetric === "growth") {
+      return analytics?.predictions.find((prediction) => prediction.name === municipio.name)
+        ?.growthPotential || 0;
+    }
+    return municipio.customers;
+  });
+  const heatmapRange = {
+    min: Math.min(...heatmapMetricValues, 0),
+    max: Math.max(...heatmapMetricValues, 0),
+  };
   const comparisonMunicipios = comparisonNames
     .map((name) => analytics?.municipios.find((municipio) => municipio.name === name))
     .filter(Boolean);
