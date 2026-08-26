@@ -16,7 +16,7 @@ const Header = () => {
         <div className="flex items-center justify-between">
           {/* Logo and Title */}
           <Link to="/" className="group flex items-center space-x-3" onClick={() => setIsMenuOpen(false)}>
-            <div className="hidden h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-sm font-bold text-white shadow-md sm:flex">
+            <div className="hidden h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-flag-blue to-flag-red text-sm font-bold text-white shadow-md sm:flex">
               PS
             </div>
             <div className="flex flex-col">
