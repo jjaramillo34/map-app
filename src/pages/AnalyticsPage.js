@@ -1163,9 +1163,13 @@ const AnalyticsPage = () => {
             <div ref={navigationRef} className="border-b border-gray-200">
               <nav
                 aria-label="Secciones de analytics"
+                role="tablist"
                 className="flex flex-wrap items-center gap-2 px-4 py-3"
               >
                 <button
+                  type="button"
+                  id="analytics-tab-overview"
+                  aria-controls="analytics-panel"
                   onClick={() => {
                     setActiveTab("overview");
                     setOpenMenu(null);
@@ -1176,12 +1180,15 @@ const AnalyticsPage = () => {
                     activeTab === "overview"
                       ? "bg-primary-50 text-primary-700"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
+                    } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
                 >
                   <BarChart3 className="h-4 w-4" />
                   Resumen
                 </button>
                 <button
+                  type="button"
+                  id="analytics-tab-compare"
+                  aria-controls="analytics-panel"
                   onClick={() => {
                     setActiveTab("compare");
                     setOpenMenu(null);
@@ -1192,7 +1199,7 @@ const AnalyticsPage = () => {
                     activeTab === "compare"
                       ? "bg-primary-50 text-primary-700"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
+                    } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
                 >
                   <Activity className="h-4 w-4" />
                   Comparar
@@ -1209,7 +1216,7 @@ const AnalyticsPage = () => {
                         onClick={() => setOpenMenu(isOpen ? null : group.id)}
                         aria-expanded={isOpen}
                         aria-haspopup="menu"
-                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
                           isActive
                             ? "bg-primary-50 text-primary-700"
                             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -1237,7 +1244,7 @@ const AnalyticsPage = () => {
                                   setActiveTab(tab.id);
                                   setOpenMenu(null);
                                 }}
-                                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
+                                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${
                                   activeTab === tab.id
                                     ? "bg-primary-50 font-semibold text-primary-700"
                                     : "text-gray-700 hover:bg-gray-50"
@@ -1255,6 +1262,9 @@ const AnalyticsPage = () => {
                 })}
 
                 <button
+                  type="button"
+                  id="analytics-tab-export"
+                  aria-controls="analytics-panel"
                   onClick={() => {
                     setActiveTab("export");
                     setOpenMenu(null);
@@ -1265,7 +1275,7 @@ const AnalyticsPage = () => {
                     activeTab === "export"
                       ? "bg-primary-50 text-primary-700"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
+                    } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
                 >
                   <Download className="h-4 w-4" />
                   Exportar
@@ -1273,7 +1283,14 @@ const AnalyticsPage = () => {
               </nav>
             </div>
 
-            <div className="p-6" aria-live="polite">
+            <div
+              id="analytics-panel"
+              className="p-4 sm:p-6"
+              role="tabpanel"
+              tabIndex="0"
+              aria-label="Contenido de analytics"
+              aria-live="polite"
+            >
               {/* Comparison Tab */}
               {activeTab === "compare" && (
                 <div className="space-y-6">
@@ -1762,11 +1779,14 @@ const AnalyticsPage = () => {
                   </p>
                   
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar Métrica:</label>
+                    <label htmlFor="analytics-heatmap-metric" className="block text-sm font-medium text-gray-700 mb-2">
+                      Seleccionar Métrica:
+                    </label>
                     <select
+                      id="analytics-heatmap-metric"
                       value={selectedMetric}
                       onChange={(e) => setSelectedMetric(e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 sm:w-auto"
                     >
                       <option value="customers">Número de Clientes</option>
                       <option value="penetration">Tasa de Penetración</option>
@@ -1775,20 +1795,60 @@ const AnalyticsPage = () => {
                     </select>
                   </div>
 
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Municipios visibles</p>
+                      <p className="mt-1 text-2xl font-bold text-blue-950">{visibleHeatmapMunicipios.length}</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Clientes solares</p>
+                      <p className="mt-1 text-2xl font-bold text-emerald-950">
+                        {visibleHeatmapMunicipios
+                          .reduce((sum, municipio) => sum + municipio.customers, 0)
+                          .toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Métrica activa</p>
+                      <p className="mt-1 text-lg font-bold text-violet-950">{heatmapMetricLabels[selectedMetric]}</p>
+                    </div>
+                  </div>
+
                   <div className="bg-white rounded-xl p-6 border border-gray-200">
                     <div className="relative h-[600px] rounded-lg overflow-hidden border border-gray-200">
                       <div ref={heatmapMapContainer} className="absolute inset-0 w-full h-full" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {analytics.municipios
-                      .filter((m) => isMunicipioVisible(m.name))
+                  <div className="rounded-xl border border-gray-200 bg-white p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">Leyenda de intensidad</p>
+                        <p className="text-xs text-gray-500">
+                          Los puntos representan centros aproximados por municipio; los límites municipales no están disponibles en este dataset.
+                        </p>
+                      </div>
+                      <div className="flex min-w-[220px] items-center gap-2">
+                        <span className="text-xs text-gray-500">{heatmapRange.min.toLocaleString()}</span>
+                        <div
+                          className="h-3 flex-1 rounded-full bg-gradient-to-r from-[#3288bd] via-[#fee08b] to-[#d53e4f]"
+                          aria-label={`Escala de ${heatmapMetricLabels[selectedMetric]}`}
+                          role="img"
+                        />
+                        <span className="text-xs text-gray-500">{heatmapRange.max.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                    {visibleHeatmapMunicipios
                       .sort((a, b) => {
                         if (selectedMetric === "customers") return b.customers - a.customers;
                         if (selectedMetric === "penetration") return parseFloat(b.penetrationRate) - parseFloat(a.penetrationRate);
                         if (selectedMetric === "income") return b.avgIncome - a.avgIncome;
-                        return 0;
+                        const aGrowth = analytics.predictions.find((prediction) => prediction.name === a.name)?.growthPotential || 0;
+                        const bGrowth = analytics.predictions.find((prediction) => prediction.name === b.name)?.growthPotential || 0;
+                        return bGrowth - aGrowth;
                       })
                       .slice(0, 8)
                       .map((m, idx) => (
@@ -1805,7 +1865,13 @@ const AnalyticsPage = () => {
                               <p className="text-gray-700">Ingreso: <span className="font-bold">${m.avgIncome.toLocaleString()}</span></p>
                             )}
                             {selectedMetric === "growth" && (
-                              <p className="text-gray-700">Potencial: <span className="font-bold text-green-600">Alto</span></p>
+                              <p className="text-gray-700">
+                                Potencial:{" "}
+                                <span className="font-bold text-green-600">
+                                  {(analytics.predictions.find((prediction) => prediction.name === m.name)
+                                    ?.growthPotential || 0).toLocaleString()}
+                                </span>
+                              </p>
                             )}
                           </div>
                         </div>
@@ -2063,8 +2129,9 @@ const AnalyticsPage = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <button
+                      type="button"
                       onClick={exportToPDF}
-                      className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-red-50 to-red-100 rounded-xl border-2 border-red-200 hover:border-red-400 transition-all hover:shadow-lg"
+                      className="flex min-h-48 flex-col items-center justify-center rounded-xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-red-100 p-6 transition-all hover:border-red-400 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:p-8"
                     >
                       <Download className="w-12 h-12 text-red-600 mb-4" />
                       <h3 className="text-xl font-bold text-gray-900 mb-2">Exportar a PDF</h3>
@@ -2074,8 +2141,9 @@ const AnalyticsPage = () => {
                     </button>
 
                     <button
+                      type="button"
                       onClick={exportToCSV}
-                      className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all hover:shadow-lg"
+                      className="flex min-h-48 flex-col items-center justify-center rounded-xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-green-100 p-6 transition-all hover:border-green-400 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 sm:p-8"
                     >
                       <Download className="w-12 h-12 text-green-600 mb-4" />
                       <h3 className="text-xl font-bold text-gray-900 mb-2">Exportar a CSV</h3>
