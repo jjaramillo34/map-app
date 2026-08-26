@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Power Solar Map">
+  <rect width="32" height="32" rx="7" fill="#0050a4"/>
+  <g fill="#f5c518">
+    <circle cx="16" cy="13.2" r="6.1"/>
+    <rect x="15.1" y="2.4" width="1.8" height="3.4" rx="0.9"/>
+    <rect x="15.1" y="20.6" width="1.8" height="3.4" rx="0.9"/>
+    <rect x="3.6" y="12.3" width="3.4" height="1.8" rx="0.9"/>
+    <rect x="25" y="12.3" width="3.4" height="1.8" rx="0.9"/>
+    <rect x="6.1" y="5.3" width="3.4" height="1.8" rx="0.9" transform="rotate(-45 7.8 6.2)"/>
+    <rect x="22.5" y="5.3" width="3.4" height="1.8" rx="0.9" transform="rotate(45 24.2 6.2)"/>
+    <rect x="6.1" y="19.1" width="3.4" height="1.8" rx="0.9" transform="rotate(45 7.8 20)"/>
+    <rect x="22.5" y="19.1" width="3.4" height="1.8" rx="0.9" transform="rotate(-45 24.2 20)"/>
+  </g>
+  <path fill="#ed0000" d="M16 29.2c-.4 0-7.2-8.1-7.2-13.2A7.2 7.2 0 0 1 16 8.8a7.2 7.2 0 0 1 7.2 7.2c0 5.1-6.8 13.2-7.2 13.2z"/>
+  <circle cx="16" cy="15.6" r="2.55" fill="#0050a4"/>
+</svg>

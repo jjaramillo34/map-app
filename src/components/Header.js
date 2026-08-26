@@ -16,9 +16,13 @@ const Header = () => {
         <div className="flex items-center justify-between">
           {/* Logo and Title */}
           <Link to="/" className="group flex items-center space-x-3" onClick={() => setIsMenuOpen(false)}>
-            <div className="hidden h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-flag-blue to-flag-red text-sm font-bold text-white shadow-md sm:flex">
-              PS
-            </div>
+            <img
+              src="/favicon.svg"
+              alt=""
+              width="40"
+              height="40"
+              className="hidden h-10 w-10 rounded-xl shadow-md sm:block"
+            />
             <div className="flex flex-col">
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight group-hover:text-primary-600 transition-colors">
                 Power Solar Map

@@ -14,10 +14,12 @@ import MunicipioDetail from "./pages/MunicipioDetail";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import DocumentTitle from "./components/DocumentTitle";
 
 const AppRouter = () => {
   return (
     <Router>
+      <DocumentTitle />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/mapa" element={<Mapa />} />
